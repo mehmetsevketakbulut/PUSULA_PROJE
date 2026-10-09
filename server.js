@@ -285,7 +285,16 @@ app.post("/api/auth/register", async (req, res) => {
       throw error;
     }
 
-    const user = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar || 'avatar1.jpg' };
+    const user = { 
+      id: data.id, name: data.name, email: data.email, role: data.role, 
+      avatar: data.avatar || 'avatar1.jpg',
+      pet_name: data.pet_name || 'Pou',
+      coins: data.coins || 0,
+      streak_count: data.streak_count || 0,
+      last_activity_date: data.last_activity_date || null,
+      inventory: data.inventory || [],
+      equipped_accessories: data.equipped_accessories || []
+    };
     res.json({ success: true, token: createToken(user), user });
   } catch (error) {
     console.error("Kayıt hatası:", error);
@@ -306,7 +315,16 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "E-posta veya şifre hatalı" });
     }
 
-    const userData = { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar || 'avatar1.jpg' };
+    const userData = { 
+      id: user.id, name: user.name, email: user.email, role: user.role, 
+      avatar: user.avatar || 'avatar1.jpg',
+      pet_name: user.pet_name || 'Pou',
+      coins: user.coins || 0,
+      streak_count: user.streak_count || 0,
+      last_activity_date: user.last_activity_date || null,
+      inventory: user.inventory || [],
+      equipped_accessories: user.equipped_accessories || []
+    };
     res.json({ 
       success: true, 
       token: createToken(userData),
@@ -334,10 +352,11 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
 
 app.post("/api/auth/update-profile", authMiddleware, async (req, res) => {
   try {
-    const { password, avatar } = req.body;
+    const { password, avatar, pet_name } = req.body;
     const updates = {};
     if (password && password.trim() !== '') updates.password_hash = hashPassword(password);
     if (avatar) updates.avatar = avatar;
+    if (pet_name) updates.pet_name = pet_name;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: "Güncellenecek veri yok" });
@@ -358,6 +377,115 @@ app.post("/api/auth/update-profile", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Profil güncelleme hatası:", error);
     res.status(500).json({ error: error.message || "Profil güncellenirken hata oluştu" });
+  }
+});
+
+// ==============================
+// GAMIFICATION ENDPOINTLERİ
+// ==============================
+
+app.post("/api/gamification/reward", authMiddleware, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const { data: user, error: fetchErr } = await supabase.from('users').select('*').eq('id', req.user.id).single();
+    if (fetchErr) throw fetchErr;
+
+    // Use current local date string (e.g. 2026-10-09)
+    const today = new Date().toISOString().split('T')[0];
+    let newStreak = user.streak_count || 0;
+    let lastDate = user.last_activity_date;
+    let bonusCoins = 0;
+
+    if (lastDate !== today) {
+      if (lastDate) {
+        const last = new Date(lastDate);
+        const current = new Date(today);
+        const diffDays = Math.round((current - last) / (1000 * 60 * 60 * 24)); 
+        if (diffDays === 1) {
+          newStreak += 1;
+        } else if (diffDays > 1) {
+          newStreak = 1;
+        }
+      } else {
+        newStreak = 1;
+      }
+      lastDate = today;
+
+      if (newStreak >= 7) {
+        bonusCoins = 50; 
+        newStreak = 0; 
+      }
+    }
+
+    const newCoins = (user.coins || 0) + (amount || 10) + bonusCoins;
+
+    const { error: updateErr } = await supabase.from('users').update({
+      coins: newCoins,
+      streak_count: newStreak,
+      last_activity_date: lastDate
+    }).eq('id', req.user.id);
+
+    if (updateErr) {
+      if (updateErr.code === 'PGRST204') {
+         // Silently return if DB columns are missing
+         return res.json({ success: true, coins: newCoins, streak: newStreak, bonus: bonusCoins, schemaError: true });
+      }
+      throw updateErr;
+    }
+
+    res.json({ success: true, coins: newCoins, streak: newStreak, bonus: bonusCoins });
+  } catch (err) {
+    console.error("Reward error:", err);
+    res.status(500).json({ error: "Ödül verilemedi" });
+  }
+});
+
+app.post("/api/gamification/shop/buy", authMiddleware, async (req, res) => {
+  try {
+    const { item_id, price } = req.body;
+    const { data: user, error: fetchErr } = await supabase.from('users').select('*').eq('id', req.user.id).single();
+    if (fetchErr) throw fetchErr;
+
+    let coins = user.coins || 0;
+    let inventory = user.inventory || [];
+    
+    if (inventory.includes(item_id)) {
+      return res.status(400).json({ error: "Bu eşyaya zaten sahipsiniz" });
+    }
+    if (coins < price) {
+      return res.status(400).json({ error: "Yetersiz coin!" });
+    }
+
+    coins -= price;
+    inventory.push(item_id);
+
+    const { error: updateErr } = await supabase.from('users').update({ coins, inventory }).eq('id', req.user.id);
+    if (updateErr) throw updateErr;
+
+    res.json({ success: true, coins, inventory });
+  } catch (err) {
+    res.status(500).json({ error: "Satın alma hatası" });
+  }
+});
+
+app.post("/api/gamification/shop/equip", authMiddleware, async (req, res) => {
+  try {
+    const { item_id, type } = req.body;
+    const { data: user, error: fetchErr } = await supabase.from('users').select('*').eq('id', req.user.id).single();
+    if (fetchErr) throw fetchErr;
+
+    let equipped = user.equipped_accessories || [];
+    equipped = equipped.filter(item => !item.startsWith(type + '_'));
+    if (item_id) {
+      equipped.push(item_id);
+    }
+
+    const { error: updateErr } = await supabase.from('users').update({ equipped_accessories: equipped }).eq('id', req.user.id);
+    if (updateErr) throw updateErr;
+
+    res.json({ success: true, equipped_accessories: equipped });
+  } catch (err) {
+    res.status(500).json({ error: "Eşya giyme hatası" });
   }
 });
 

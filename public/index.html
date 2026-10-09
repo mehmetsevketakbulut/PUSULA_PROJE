@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=1791562252810">
+    <link rel="stylesheet" href="css/style.css?v=1791562252811">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
@@ -322,6 +322,54 @@
             </div>
         </section>
 
+        <!-- Student - My Pet page -->
+        <section class="page" id="page-pet">
+            <div class="role-hero student-hero" style="background: linear-gradient(135deg, #FFB199 0%, #FF0844 100%); color: white; padding: 2.5rem; border-radius: var(--radius-lg); margin-bottom: 2rem; box-shadow: 0 15px 30px rgba(255, 8, 68, 0.3); position: relative; overflow: hidden;">
+                <div style="position: relative; z-index: 2;">
+                    <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -0.5px;">Evcil Hayvanım</h2>
+                    <p style="font-size: 1.1rem; opacity: 0.9; max-width: 600px;">Yanlış sorularını doğruya çevirdikçe coin kazan, serini bozma ve hayvanına yepyeni aksesuarlar al!</p>
+                </div>
+                <i class="fas fa-bone" style="position: absolute; right: 2rem; bottom: -1rem; font-size: 9rem; opacity: 0.15; z-index: 1;"></i>
+            </div>
+            
+            <div class="dashboard-grid">
+                <!-- Pet Display Area -->
+                <div class="card" style="text-align: center; background: #fffaf0; border: 2px dashed #ffd8a8;">
+                    <div class="card-body" style="padding: 3rem 1rem;">
+                        <div id="bigPetContainer" style="position: relative; display: inline-block; animation: bounce 3s infinite ease-in-out;">
+                            <!-- Big Avatar & Accessories will be injected here -->
+                        </div>
+                        <h3 style="margin-top: 1.5rem; color: var(--dark);"><span id="petNameDisplay">Pou</span></h3>
+                    </div>
+                </div>
+
+                <!-- Stats & Shop -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-store"></i> Market & Durum</h2>
+                    </div>
+                    <div class="card-body">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2rem; background: var(--light-bg); padding: 1rem; border-radius: var(--radius-md);">
+                            <div style="text-align: center;">
+                                <i class="fas fa-coins" style="font-size: 2rem; color: #f1c40f; margin-bottom: 0.5rem;"></i>
+                                <h4><span id="petCoinsDisplay">0</span> Coin</h4>
+                            </div>
+                            <div style="text-align: center;">
+                                <i class="fas fa-fire" style="font-size: 2rem; color: #e74c3c; margin-bottom: 0.5rem;"></i>
+                                <h4><span id="petStreakDisplay">0</span> Gün Seri</h4>
+                                <small style="color:var(--text-muted);">7 Günde +50 Bonus!</small>
+                            </div>
+                        </div>
+
+                        <h3 style="margin-bottom: 1rem; color: var(--dark);">Aksesuarlar</h3>
+                        <div id="petShopGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 1rem;">
+                            <!-- Shop items injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Student/Teacher - Settings page -->
         <section class="page" id="page-settings">
             <div class="role-hero" style="background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: var(--dark); padding: 2.5rem; border-radius: var(--radius-lg); margin-bottom: 2rem; box-shadow: 0 15px 30px rgba(161, 196, 253, 0.3); position: relative; overflow: hidden;">
@@ -360,6 +408,10 @@
                             <div class="input-group">
                                 <label><i class="fas fa-envelope"></i> E-posta</label>
                                 <input type="text" id="settingsEmail" disabled style="background: var(--light-bg); cursor: not-allowed;">
+                            </div>
+                            <div class="input-group">
+                                <label><i class="fas fa-paw"></i> Evcil Hayvan Adı</label>
+                                <input type="text" id="settingsPetName" placeholder="Evcil hayvanına isim ver...">
                             </div>
                             <div class="input-group">
                                 <label><i class="fas fa-key"></i> Yeni Şifre (Değiştirmek istemiyorsan boş bırak)</label>
@@ -559,7 +611,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="js/app.js?v=9991562252812"></script>
+    <script src="js/app.js?v=9991562252818"></script>
 
     <!-- AI Similar Questions Modal -->
     <div class="confirm-overlay" id="aiQuizModal" style="align-items: flex-start; padding-top: 5vh; z-index: 2000;">

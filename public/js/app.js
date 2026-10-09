@@ -12,6 +12,21 @@ if (!authToken || !authUser) {
   window.location.href = '/login';
 }
 
+// Ensure the latest data is fetched from the server so refresh doesn't rely solely on localStorage
+if (authToken) {
+  apiGet('/api/auth/me')
+    .then(res => {
+      if (res.success && res.user) {
+        authUser = res.user;
+        localStorage.setItem('authUser', JSON.stringify(authUser));
+        // Update basic UI instantly if it changed
+        if (document.getElementById("userName")) document.getElementById("userName").textContent = authUser.name;
+        if (document.getElementById('petCoinsDisplay')) document.getElementById('petCoinsDisplay').textContent = authUser.coins || 0;
+      }
+    })
+    .catch(err => console.error("Session sync failed:", err));
+}
+
 function getAuthHeaders() {
   return { 'Authorization': `Bearer ${authToken}` };
 }
@@ -111,6 +126,12 @@ function setupRoleVisibility() {
     if (quickAddBtn) quickAddBtn.classList.add('student-only-hide');
     const uploadNav = document.querySelector('.nav-item[data-page="upload"]');
     if (uploadNav) uploadNav.classList.add('student-only-hide');
+    
+    // Hide avatar selection and pet name settings for teachers
+    const avatarCard = document.getElementById('avatarSelectionGrid')?.closest('.card');
+    if (avatarCard) avatarCard.classList.add('student-only-hide');
+    const petNameInputGroup = document.getElementById('settingsPetName')?.closest('.input-group');
+    if (petNameInputGroup) petNameInputGroup.classList.add('student-only-hide');
   }
 }
 
@@ -169,6 +190,10 @@ function renderSidebar() {
       <a href="#" class="nav-item" data-page="my-classroom">
           <i class="fas fa-school"></i>
           <span>Sınıfım</span>
+      </a>
+      <a href="#" class="nav-item" data-page="pet">
+          <i class="fas fa-paw"></i>
+          <span>Evcil Hayvanım</span>
       </a>
       <a href="#" class="nav-item" data-page="my-comments">
           <i class="fas fa-comments"></i>
@@ -444,6 +469,7 @@ function setupNavigation() {
     upload: "Soru Ekle",
     stats: "İstatistikler",
     "my-classroom": "Sınıfım",
+    pet: "Evcil Hayvanım",
     "my-comments": "Yorumlarım",
     "study-plan": "Çalışma Programım",
     "report-card": "Haftalık Karnem",
@@ -467,6 +493,7 @@ function setupNavigation() {
       if (page === "gallery") loadGallery();
       if (page === "stats") loadStats();
       if (page === "my-classroom") loadMyClassroom();
+      if (page === "pet") loadPetPage();
       if (page === "my-comments") loadMyComments();
       if (page === "study-plan") loadStudyPlan();
       if (page === "report-card") loadReportCard();
@@ -658,7 +685,8 @@ function showSolutionModal(question) {
 async function loadDashboard() {
   try {
     const heroDiv = document.querySelector('.student-hero > div');
-    if (heroDiv && authUser && authUser.avatar) {
+    if (heroDiv && authUser) {
+      const userAvatar = authUser.avatar || 'avatar1.jpg';
       let pouContainer = document.getElementById('pouContainer');
       if (!pouContainer) {
         pouContainer = document.createElement('div');
@@ -667,9 +695,22 @@ async function loadDashboard() {
         heroDiv.parentElement.appendChild(pouContainer);
       }
       pouContainer.innerHTML = `
-        <img src="images/avatars/${authUser.avatar}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.2); animation: pouBounce 2.5s infinite ease-in-out;" />
+        <div id="dashboardAvatarWrapper" style="position: relative; display: inline-block;">
+          <img src="images/avatars/${userAvatar}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.2); animation: pouBounce 2.5s infinite ease-in-out;" />
+        </div>
         <div style="background: white; color: var(--dark); padding: 0.5rem 1.2rem; border-radius: 20px; margin-top: -15px; font-weight: 800; font-size: 0.95rem; z-index: 4; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">Merhaba ${authUser.name.split(' ')[0]}! 🐾</div>
       `;
+      
+      const wrapper = pouContainer.querySelector('#dashboardAvatarWrapper');
+      if (typeof renderPetAccessories !== 'undefined' && wrapper) {
+        renderPetAccessories(wrapper, authUser.equipped_accessories || []);
+        // Adjust accessory scale for smaller dashboard avatar
+        wrapper.querySelectorAll('.pet-accessory').forEach(acc => {
+          acc.style.fontSize = '30px';
+          if(acc.innerHTML === '🎩' || acc.innerHTML === '👑' || acc.innerHTML === '🎓') acc.style.top = '-15px';
+          if(acc.innerHTML === '🕶️' || acc.innerHTML === '🤓') acc.style.top = '15px';
+        });
+      }
       if (!document.getElementById('pouAnimation')) {
         const style = document.createElement('style');
         style.id = 'pouAnimation';
@@ -1178,9 +1219,26 @@ window.checkAiAnswer = function(btn, correct, solution) {
   
   if (isCorrect) {
     resultDiv.innerHTML = '<h3 style="color:var(--success); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-check-circle fa-lg"></i> Tebrikler, Doğru Cevap!</h3>';
+    
+    // Gamification Reward
+    apiPost('/api/gamification/reward', { amount: 10 })
+      .then(res => {
+        if (res.success && authUser) {
+          authUser.coins = res.coins;
+          authUser.streak_count = res.streak;
+          localStorage.setItem('authUser', JSON.stringify(authUser));
+          
+          let msg = `+10 Coin kazandın!`;
+          if (res.bonus > 0) msg += ` 🎉 7 Günlük Seri Bonusu: +${res.bonus} Coin!`;
+          showToast(msg, "success");
+        }
+      })
+      .catch(err => console.error("Reward error", err));
+
   } else {
     resultDiv.innerHTML = '<h3 style="color:var(--danger); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-times-circle fa-lg"></i> Yanlış Cevap. Doğru Şık: ' + correct + '</h3>';
   }
+
   
   try {
     let parsedSolution = solution;
@@ -1452,6 +1510,10 @@ function loadSettings() {
     });
   }
 
+  if (document.getElementById('settingsPetName')) {
+    document.getElementById('settingsPetName').value = authUser.pet_name || 'Pou';
+  }
+
   const form = document.getElementById('settingsForm');
   if (form && !form.dataset.listenerAttached) {
     form.dataset.listenerAttached = "true";
@@ -1460,6 +1522,8 @@ function loadSettings() {
       const newPassword = document.getElementById('settingsNewPassword').value;
       const selectedAvatarEl = document.querySelector('.avatar-option.selected');
       const selectedAvatar = selectedAvatarEl ? selectedAvatarEl.dataset.avatar : (authUser.avatar || 'avatar1.jpg');
+      const petNameInput = document.getElementById('settingsPetName');
+      const newPetName = petNameInput ? petNameInput.value : authUser.pet_name;
 
       try {
         const btn = form.querySelector('button');
@@ -1469,12 +1533,15 @@ function loadSettings() {
 
         const res = await apiPost('/api/auth/update-profile', {
           password: newPassword,
-          avatar: selectedAvatar
+          avatar: selectedAvatar,
+          pet_name: newPetName
         });
 
         if (res.success) {
           showToast('Ayarlar başarıyla güncellendi!', 'success');
           authUser.avatar = selectedAvatar;
+          authUser.pet_name = newPetName;
+          localStorage.setItem('authUser', JSON.stringify(authUser));
           if (document.getElementById('settingsNewPassword')) {
              document.getElementById('settingsNewPassword').value = '';
           }
@@ -1491,5 +1558,113 @@ function loadSettings() {
         }
       }
     });
+  }
+}
+
+// ==============================
+// EVCİL HAYVANIM (PET)
+// ==============================
+
+const shopItems = [
+  { id: 'hat_1', type: 'hat', icon: '🎩', price: 50, name: 'Sihirbaz Şapkası' },
+  { id: 'hat_2', type: 'hat', icon: '👑', price: 100, name: 'Kral Tacı' },
+  { id: 'hat_3', type: 'hat', icon: '🎓', price: 30, name: 'Mezuniyet Kep' },
+  { id: 'hat_4', type: 'hat', icon: '🤠', price: 150, name: 'Kovboy Şapkası' },
+  { id: 'hat_5', type: 'hat', icon: '🏴‍☠️', price: 200, name: 'Korsan Bandanası' },
+  { id: 'hat_6', type: 'hat', icon: '👼', price: 300, name: 'Melek Halesi' }
+];
+
+function renderPetAccessories(container, equipped) {
+  // Remove existing accessories
+  container.querySelectorAll('.pet-accessory').forEach(el => el.remove());
+  
+  equipped.forEach(itemId => {
+    const item = shopItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    const el = document.createElement('div');
+    el.className = 'pet-accessory';
+    el.style.position = 'absolute';
+    el.style.fontSize = '40px';
+    el.style.zIndex = '5';
+    el.innerHTML = item.icon;
+
+    if (item.type === 'hat') {
+      el.style.top = '-25px';
+      el.style.left = '50%';
+      el.style.transform = 'translateX(-50%)';
+    } else if (item.type === 'glasses') {
+      el.style.top = '25px';
+      el.style.left = '50%';
+      el.style.transform = 'translateX(-50%)';
+    }
+    container.appendChild(el);
+  });
+}
+
+async function loadPetPage() {
+  if (!authUser) return;
+  
+  // Update UI stats instantly from local authUser
+  document.getElementById('petCoinsDisplay').textContent = authUser.coins || 0;
+  document.getElementById('petStreakDisplay').textContent = authUser.streak_count || 0;
+  document.getElementById('petNameDisplay').textContent = authUser.pet_name || 'Pou';
+
+  const petContainer = document.getElementById('bigPetContainer');
+  const userAvatar = authUser.avatar || 'avatar1.jpg';
+  petContainer.innerHTML = `<img src="images/avatars/${userAvatar}" style="width: 150px; height: 150px; object-fit: cover; border-radius: 50%; border: 6px solid var(--primary); box-shadow: 0 15px 25px rgba(0,0,0,0.15);" />`;
+  
+  renderPetAccessories(petContainer, authUser.equipped_accessories || []);
+
+  const shopGrid = document.getElementById('petShopGrid');
+  shopGrid.innerHTML = shopItems.map(item => {
+    const owned = (authUser.inventory || []).includes(item.id);
+    const equipped = (authUser.equipped_accessories || []).includes(item.id);
+    let btnHtml = '';
+    
+    if (equipped) {
+      btnHtml = `<button class="btn-primary" style="width:100%; padding: 0.3rem; font-size: 0.8rem; background: var(--secondary);" onclick="equipItem('${item.id}', '${item.type}', true)">Çıkar</button>`;
+    } else if (owned) {
+      btnHtml = `<button class="btn-primary" style="width:100%; padding: 0.3rem; font-size: 0.8rem;" onclick="equipItem('${item.id}', '${item.type}', false)">Giy</button>`;
+    } else {
+      btnHtml = `<button class="btn-primary" style="width:100%; padding: 0.3rem; font-size: 0.8rem; background: #f1c40f; color: #333;" onclick="buyItem('${item.id}', ${item.price})"><i class="fas fa-coins"></i> ${item.price}</button>`;
+    }
+
+    return `
+      <div style="background: white; padding: 1rem; border-radius: var(--radius-md); text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: ${equipped ? '2px solid var(--success)' : '1px solid #eee'}">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">${item.icon}</div>
+        <div style="font-size: 0.75rem; font-weight: bold; margin-bottom: 0.5rem; color: var(--dark);">${item.name}</div>
+        ${btnHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+window.buyItem = async function(itemId, price) {
+  try {
+    const res = await apiPost('/api/gamification/shop/buy', { item_id: itemId, price });
+    if (res.success) {
+      authUser.coins = res.coins;
+      authUser.inventory = res.inventory;
+      localStorage.setItem('authUser', JSON.stringify(authUser));
+      showToast("Satın alındı!", "success");
+      loadPetPage();
+    }
+  } catch (err) {
+    showToast(err.message || "Hata oluştu", "error");
+  }
+}
+
+window.equipItem = async function(itemId, type, isUnequip) {
+  try {
+    const idToEquip = isUnequip ? null : itemId;
+    const res = await apiPost('/api/gamification/shop/equip', { item_id: idToEquip, type });
+    if (res.success) {
+      authUser.equipped_accessories = res.equipped_accessories;
+      localStorage.setItem('authUser', JSON.stringify(authUser));
+      loadPetPage();
+    }
+  } catch (err) {
+    showToast(err.message || "Hata oluştu", "error");
   }
 }
