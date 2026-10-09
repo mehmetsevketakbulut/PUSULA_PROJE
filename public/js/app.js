@@ -1345,7 +1345,7 @@ async function loadReportCard() {
           margin:       0.5,
           filename:     'Pusula_Gelisim_Karnesi.pdf',
           image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas:  { scale: 4, useCORS: true, backgroundColor: '#ffffff', letterRendering: true },
           jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
         const originalText = dlBtn.innerHTML;
