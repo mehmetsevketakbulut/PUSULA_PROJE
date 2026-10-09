@@ -132,7 +132,7 @@ async function loadMyClassroom() {
       content.innerHTML = `
         <div style="padding:2rem; text-align:center; background:var(--light-bg); border-radius:var(--radius-md);">
           <h3 style="margin-bottom:0.5rem; color:var(--primary);">${res.classroom.name}</h3>
-          <p style="margin-bottom:1rem; color:var(--text-muted);">Öğretmen: ${res.classroom.teacherName}</p>
+          <p style="margin-bottom:1rem; color:var(--text-muted);">Öğretmen: ${res.classroom.teacher_name}</p>
           <button class="btn-danger" onclick="leaveClassroom()">Sınıftan Ayrıl</button>
         </div>
       `;
