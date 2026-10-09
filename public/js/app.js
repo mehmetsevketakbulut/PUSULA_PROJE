@@ -45,8 +45,36 @@ const SUBJECTS = {
 let selectedFile = null;
 
 // ==============================
-// BAŞLATMA
+// BAŞLATMA & TEMA
 // ==============================
+function setupThemeToggle() {
+    const themeBtn = document.getElementById('themeToggle');
+    if(!themeBtn) return;
+    
+    const icon = themeBtn.querySelector('i');
+    const currentTheme = localStorage.getItem('theme');
+    
+    if (currentTheme === 'dark') {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+    }
+    
+    themeBtn.addEventListener('click', () => {
+        let theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'dark') {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+    });
+}
+
 
 document.addEventListener("DOMContentLoaded", () => {
   if (authUser) {
@@ -57,6 +85,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLogout();
       setDailyQuote();
   
+  setupThemeToggle();
+
   // setupNavigation is now called inside renderSidebar()
   setupUploadForm();
   setupGalleryFilters();
@@ -1015,7 +1045,10 @@ async function openLightbox(id) {
         </div>
       ` : ""}
       <p><small>${formatDate(q.dateAdded)}</small></p>
-      <button class="btn-danger" onclick="handleDelete(${q.id})"><i class="fas fa-trash"></i> Sil</button>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+          <button class="btn-primary" style="background: #FF0000; color: white;" onclick="getVideoRecommendation('${q.subject}', '${q.topic}')"><i class="fab fa-youtube"></i> Video Önerisi İstiyorum</button>
+          <button class="btn-danger" onclick="handleDelete(${q.id})"><i class="fas fa-trash"></i> Sil</button>
+      </div>
     `;
 
     lightbox.classList.add("active");
@@ -1028,6 +1061,74 @@ async function openLightbox(id) {
 function closeLightbox() {
   document.getElementById("lightbox").classList.remove("active");
   document.body.style.overflow = "";
+}
+
+// ==============================
+// YAPAY ZEKA VİDEO ÖNERİSİ
+// ==============================
+
+async function getVideoRecommendation(subject, topic) {
+  const modal = document.getElementById('aiVideoModal');
+  const content = document.getElementById('aiVideoContent');
+  const closeBtn = document.getElementById('aiVideoClose');
+
+  if (!modal || !content) return;
+
+  // Show modal with loading state
+  modal.classList.add('active');
+  content.innerHTML = `<div style="text-align: center; color: var(--text-muted);"><i class="fas fa-spinner fa-spin fa-2x"></i><p style="margin-top: 15px;">Yapay Zeka sana özel YouTube tavsiyeleri hazırlıyor...</p></div>`;
+
+  closeBtn.onclick = () => modal.classList.remove('active');
+
+  try {
+    const res = await fetch('/api/ai/recommend-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ subject, topic })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Video önerisi alınamadı.');
+
+    const aiData = data.data;
+    
+    let html = `
+      <div style="background: rgba(52, 152, 219, 0.1); padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; border-left: 4px solid var(--primary);">
+        <h3 style="color: var(--primary); margin-bottom: 10px;"><i class="fas fa-magic"></i> AI Koçun Diyor Ki:</h3>
+        <p style="font-size: 1.1rem; line-height: 1.6; color: var(--text-main); font-weight: 500;">"${aiData.message}"</p>
+      </div>
+      <h3 style="margin-bottom: 1.5rem; color: var(--text-muted); text-align: left;">Önerilen Kanallar:</h3>
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+    `;
+
+    aiData.recommendations.forEach(rec => {
+      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(rec.searchQuery)}`;
+      html += `
+        <a href="${searchUrl}" target="_blank" style="display: flex; align-items: center; justify-content: space-between; background: var(--light-bg); padding: 1.5rem; border-radius: 16px; text-decoration: none; border: 1px solid var(--border-color); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 20px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <i class="fab fa-youtube" style="font-size: 2.5rem; color: #FF0000;"></i>
+            <div style="text-align: left;">
+              <div style="font-weight: 700; color: var(--text-main); font-size: 1.1rem;">${rec.channel}</div>
+              <div style="font-size: 0.9rem; color: var(--text-muted); margin-top: 5px;">Youtube'da Ara: "${rec.searchQuery}"</div>
+            </div>
+          </div>
+          <i class="fas fa-chevron-right" style="color: var(--text-muted);"></i>
+        </a>
+      `;
+    });
+
+    html += `</div>`;
+    content.innerHTML = html;
+
+  } catch (error) {
+    console.error(error);
+    content.innerHTML = `
+      <div style="color: var(--danger); padding: 2rem;">
+        <i class="fas fa-exclamation-triangle fa-2x" style="margin-bottom: 15px;"></i>
+        <p>${error.message || 'Bir hata oluştu.'}</p>
+      </div>
+    `;
+  }
 }
 
 // ==============================
@@ -1465,9 +1566,9 @@ const quotes = [
 function setDailyQuote() {
   const quoteEl = document.getElementById('dailyQuoteText');
   if (quoteEl) {
-    // Pick quote based on day of year to change daily
-    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
-    quoteEl.textContent = quotes[dayOfYear % quotes.length];
+    // Pick random quote
+    const randomIdx = Math.floor(Math.random() * quotes.length);
+    quoteEl.textContent = quotes[randomIdx];
   }
 }
 
@@ -1571,16 +1672,34 @@ const shopItems = [
   { id: 'hat_3', type: 'hat', icon: '🎓', price: 30, name: 'Mezuniyet Kep' },
   { id: 'hat_4', type: 'hat', icon: '🤠', price: 150, name: 'Kovboy Şapkası' },
   { id: 'hat_5', type: 'hat', icon: '🏴‍☠️', price: 200, name: 'Korsan Bandanası' },
-  { id: 'hat_6', type: 'hat', icon: '👼', price: 300, name: 'Melek Halesi' }
+  { id: 'hat_6', type: 'hat', icon: '👼', price: 300, name: 'Melek Halesi' },
+  { id: 'bg_1', type: 'bg', icon: '🎨', price: 50, name: 'Galaksi Mavisi Arka Plan', color: 'linear-gradient(135deg, #192a56 0%, #273c75 100%)' },
+  { id: 'bg_2', type: 'bg', icon: '🎨', price: 50, name: 'Neon Pembe Arka Plan', color: 'linear-gradient(135deg, #ff4757 0%, #ff6b81 100%)' },
+  { id: 'bg_3', type: 'bg', icon: '🎨', price: 50, name: 'Altın Sarısı Arka Plan', color: 'linear-gradient(135deg, #eccc68 0%, #ffa502 100%)' }
 ];
 
 function renderPetAccessories(container, equipped) {
   // Remove existing accessories
   container.querySelectorAll('.pet-accessory').forEach(el => el.remove());
   
+  // Reset background
+  container.style.background = 'var(--white)';
+  container.style.boxShadow = 'var(--card-shadow)';
+
   equipped.forEach(itemId => {
     const item = shopItems.find(i => i.id === itemId);
     if (!item) return;
+
+    if (item.type === 'bg') {
+      container.style.background = item.color;
+      // Parse out the first color to use for the glow if possible, or just use a generic glow
+      // We will just use a nice generic glow for the background color
+      const glowColor = item.color.includes('#192a56') ? 'rgba(25, 42, 86, 0.4)' : 
+                        item.color.includes('#ff4757') ? 'rgba(255, 71, 87, 0.4)' : 
+                        'rgba(236, 204, 104, 0.4)';
+      container.style.boxShadow = `0 15px 35px ${glowColor}, inset 0 -10px 20px rgba(0,0,0,0.1)`;
+      return;
+    }
 
     const el = document.createElement('div');
     el.className = 'pet-accessory';

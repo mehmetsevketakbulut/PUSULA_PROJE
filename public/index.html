@@ -8,16 +8,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css?v=1791562252811">
+    <link rel="stylesheet" href="css/style.css?v=1791562252812">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    </script>
 </head>
 <body>
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="logo">
-                <i class="fas fa-book-open"></i>
-                <span>Koçum Benim</span>
+                <img src="images/logo.jpg" alt="KB Logo" style="height: 40px; border-radius: 50%;">
+                <span style="font-weight: 800; font-size: 1.3rem;">Koçum Benim</span>
             </div>
             <button class="sidebar-close" id="sidebarClose">
                 <i class="fas fa-times"></i>
@@ -47,12 +52,15 @@
             <div class="topbar-user" id="topbarUser">
                 <span class="user-name" id="userName"></span>
                 <span class="user-role-badge" id="userRoleBadge"></span>
+                <button id="themeToggle" class="btn-logout" title="Gece Modu" style="margin-right: 5px;">
+                    <i class="fas fa-moon"></i>
+                </button>
                 <button class="btn-logout" id="logoutBtn" title="Çıkış Yap">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
             <div class="topbar-actions student-only">
-                <button class="btn-primary" id="quickAddBtn">
+                <button class="btn-white" id="quickAddBtn">
                     <i class="fas fa-plus"></i>
                     <span>Soru Ekle</span>
                 </button>
@@ -611,7 +619,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="js/app.js?v=9991562252818"></script>
+    <script src="js/app.js?v=9991562252823"></script>
 
     <!-- AI Similar Questions Modal -->
     <div class="confirm-overlay" id="aiQuizModal" style="align-items: flex-start; padding-top: 5vh; z-index: 2000;">
@@ -623,6 +631,18 @@
             <div class="card-body" id="aiQuizContent" style="padding: 1.5rem;">
                 <!-- Quiz content dynamically injected here -->
                 <div style="text-align: center; color: var(--text-muted);"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Yapay Zeka sana özel sorular üretiyor...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Video Recommendation Modal -->
+    <div class="confirm-overlay" id="aiVideoModal" style="align-items: flex-start; padding-top: 10vh; z-index: 2000;">
+        <div class="card" style="width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; background: var(--white); box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--white); z-index: 10; border-bottom: 1px solid var(--border-color);">
+                <h2 style="color: var(--secondary);"><i class="fab fa-youtube" style="color: #FF0000;"></i> AI Video Önerisi</h2>
+                <button class="btn-icon" id="aiVideoClose" style="color: var(--text-muted);"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="card-body" id="aiVideoContent" style="padding: 2rem; text-align: center;">
             </div>
         </div>
     </div>

@@ -3,34 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Yanlış Defterim - Giriş Yap</title>
+  <title>Koçum Benim - Sınav Koçun</title>
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- CSS -->
-  <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/login.css?v=20261010001">
+
+  <script>
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  </script>
 </head>
 <body>
 
-  <!-- Background blobs -->
-  <div class="bg-blobs">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-  </div>
+  <!-- NAVBAR -->
+  <nav class="landing-nav">
+    <div class="nav-logo">
+      <img src="images/logo.jpg" alt="KB Logo">
+      Koçum Benim
+    </div>
+    <div class="nav-actions" style="align-items: center; display: flex;">
+      <button id="themeToggleLogin" style="background: none; border: none; font-size: 1.3rem; color: var(--text-main); cursor: pointer; margin-right: 15px;" title="Gece Modu">
+        <i class="fas fa-moon"></i>
+      </button>
+      <button class="btn-login" onclick="openAuthModal('login')">Giriş Yap</button>
+      <button class="btn-register" onclick="openAuthModal('register')">Ücretsiz Başla</button>
+    </div>
+  </nav>
 
-  <div class="container">
-    <div class="glass-card">
+  <!-- HERO -->
+  <header class="landing-hero">
+    <h1 class="hero-title">Sınav Sürecinde Yapay Zeka Koçunla Tanış!</h1>
+    <p class="hero-subtitle">Koçum Benim ile hatalarını analiz et, eksiklerini anında gör ve oyunlaştırılmış performans sistemiyle ders çalışmayı eğlenceli hale getir.</p>
+    <button class="btn-hero" onclick="openAuthModal('register')">Hemen Ücretsiz Başla <i class="fas fa-arrow-right"></i></button>
+  </header>
+
+  <!-- FEATURES -->
+  <section class="landing-features">
+    <div class="feature-card">
+      <i class="fas fa-robot feature-icon"></i>
+      <h3 class="feature-title">Yapay Zeka Destekli Analiz</h3>
+      <p class="feature-desc">Yanlış yaptığın soruları sisteme yükle, yapay zeka senin için anında benzer sorular üretsin ve konuyu tam anlamanı sağlasın.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-paw feature-icon"></i>
+      <h3 class="feature-title">Oyunlaştırma & Eğlence</h3>
+      <p class="feature-desc">Soru çözdükçe coin kazan, serilerini (streak) koru ve kendi sanal evcil hayvanını kişiselleştirerek motivasyonunu zirvede tut.</p>
+    </div>
+    <div class="feature-card">
+      <i class="fas fa-chalkboard-teacher feature-icon"></i>
+      <h3 class="feature-title">Gelişmiş Performans Takibi</h3>
+      <p class="feature-desc">Haftalık ve genel soru çözüm istatistiklerini, en zayıf derslerini anlık takip et. Öğretmeninle bağlantıda kalarak gerçek bir koçluk deneyimi yaşa.</p>
+    </div>
+  </section>
+
+  <!-- AUTH MODAL -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeAuthModal()"><i class="fas fa-times"></i></button>
       
       <div class="header">
-        <i class="fas fa-book-open header-icon"></i>
-        <h1 class="header-title">Yanlış Defterim</h1>
-        <p class="header-subtitle">YKS Yanlış Soru Takipçisi</p>
+        <i class="fas fa-compass header-icon"></i>
+        <h2 class="header-title">Hoş Geldin</h2>
       </div>
 
       <div class="tabs">
@@ -94,18 +136,64 @@
       </form>
 
       <div class="footer">
-        Pusula Takımı &copy; 2026
+        Koçum Benim Takımı &copy; 2026
       </div>
-
     </div>
   </div>
 
+  <!-- Toast Container -->
   <div id="toastContainer" class="toast-container"></div>
 
+  <!-- Script for Landing Page logic -->
   <script>
     // Authentication Check on Load
     if (localStorage.getItem('authToken')) {
       window.location.href = '/';
+    }
+
+    // Modal & Tab Logic
+    function openAuthModal(targetTab) {
+      document.getElementById('authModal').classList.add('active');
+      if(targetTab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          if(btn.dataset.target === targetTab) {
+            btn.click();
+          }
+        });
+      }
+    }
+    
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.remove('active');
+    }
+
+    // Close on outside click
+    document.getElementById('authModal').addEventListener('click', function(e) {
+      if(e.target === this) closeAuthModal();
+    });
+
+    // Theme Toggle Logic
+    const themeBtnLogin = document.getElementById('themeToggleLogin');
+    if (themeBtnLogin) {
+      const icon = themeBtnLogin.querySelector('i');
+      if (localStorage.getItem('theme') === 'dark') {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+      }
+      themeBtnLogin.addEventListener('click', () => {
+        let theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'dark') {
+          document.documentElement.removeAttribute('data-theme');
+          localStorage.setItem('theme', 'light');
+          icon.classList.remove('fa-sun');
+          icon.classList.add('fa-moon');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('theme', 'dark');
+          icon.classList.remove('fa-moon');
+          icon.classList.add('fa-sun');
+        }
+      });
     }
 
     // Tab Switching Logic
@@ -130,10 +218,10 @@
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
       toast.className = `toast ${type}`;
-      
+
       const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
       toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
-      
+
       container.appendChild(toast);
 
       setTimeout(() => {
@@ -150,9 +238,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
           localStorage.setItem('authToken', data.token);
           localStorage.setItem('authUser', JSON.stringify(data.user));
@@ -173,7 +261,7 @@
       e.preventDefault();
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
-      
+
       handleAuth('/api/auth/login', { email, password });
     });
 
@@ -184,7 +272,7 @@
       const email = document.getElementById('regEmail').value;
       const password = document.getElementById('regPassword').value;
       const role = document.querySelector('input[name="role"]:checked').value;
-      
+
       handleAuth('/api/auth/register', { name, email, password, role });
     });
   </script>

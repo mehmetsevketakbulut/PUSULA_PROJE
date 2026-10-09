@@ -1,0 +1,21 @@
+◇ injected env (3) from .env
+
+╔══════════════════════════════════════════╗
+║   🎯 Yanlış Defterim - Backend Aktif    ║
+║   🌐 http://localhost:3000              ║
+║   🤖 Gemini AI: Bağlı                   ║
+║   💾 Supabase: Hazır                    ║
+║   📁 Pusula Takımı © 2026               ║
+╚══════════════════════════════════════════╝
+  
+Profil güncelleme hatası: Error: Veritabanı sütunu eksik! Lütfen SQL'i çalıştırın.
+    at /Users/ardayilmaz/.gemini/antigravity/scratch/PUSULA_PROJE/server.js:372:16
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Profil güncelleme hatası: Error: Veritabanı sütunu eksik! Lütfen SQL'i çalıştırın.
+    at /Users/ardayilmaz/.gemini/antigravity/scratch/PUSULA_PROJE/server.js:372:16
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Profil güncelleme hatası: Error: Veritabanı sütunu eksik! Lütfen SQL'i çalıştırın.
+    at /Users/ardayilmaz/.gemini/antigravity/scratch/PUSULA_PROJE/server.js:372:16
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+🤖 Gemini analiz başlıyor: Biyoloji...
+✅ AI analiz tamamlandı - Konu: Hayvanlar ve Özellikleri

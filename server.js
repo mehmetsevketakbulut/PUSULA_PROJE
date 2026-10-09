@@ -258,6 +258,45 @@ app.post("/api/generate-similar", authMiddleware, async (req, res) => {
 });
 
 // ==============================
+// YAPAY ZEKA VİDEO ÖNERİSİ
+// ==============================
+
+app.post("/api/ai/recommend-video", authMiddleware, async (req, res) => {
+  try {
+    const { subject, topic } = req.body;
+    if (!subject || !topic) {
+      return res.status(400).json({ error: "Ders ve Konu bilgisi gerekli" });
+    }
+
+    const prompt = `Sen bir YKS rehberlik koçusun. Öğrencin '${subject}' dersinin '${topic}' konusunda zorluk çekiyor ve kendisini yetersiz hissediyor. 
+    Bu konuyu pekiştirmesi için YouTube'da YKS müfredatına uygun, konuyu en iyi anlatan 2 popüler kanalı/hocayı öner.
+    Öğrenciye kısa ve moral verici bir tavsiye ver.
+    
+    Yanıtını MUTLAKA aşağıdaki JSON formatında ver:
+    {
+      "message": "Moral verici ve koçluk içeren kısa mesaj...",
+      "recommendations": [
+        {
+          "channel": "Kanal/Hoca Adı",
+          "searchQuery": "YouTube arama sorgusu (örn: YKS Matematik Limit Mert Hoca)"
+        }
+      ]
+    }`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }]
+    });
+    
+    const parsed = safeJSONParse(response.choices[0].message.content);
+    res.json({ success: true, data: parsed });
+  } catch (error) {
+    console.error("AI Video Öneri Hatası:", error);
+    res.status(500).json({ error: "Video önerisi alınırken hata oluştu." });
+  }
+});
+// ==============================
 // AUTH ENDPOINTLERİ
 // ==============================
 
