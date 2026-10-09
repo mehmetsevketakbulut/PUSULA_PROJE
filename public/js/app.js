@@ -55,6 +55,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   setupRoleVisibility();
   setupLogout();
+  const dyslexiaBtn = document.getElementById('dyslexiaBtn');
+  if (dyslexiaBtn) {
+    dyslexiaBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dyslexia-mode');
+      const isEnabled = document.body.classList.contains('dyslexia-mode');
+      localStorage.setItem('dyslexiaMode', isEnabled);
+      showToast(isEnabled ? "Disleksi Modu Açıldı" : "Disleksi Modu Kapatıldı", "success");
+    });
+    
+    // Check local storage on load
+    if (localStorage.getItem('dyslexiaMode') === 'true') {
+      document.body.classList.add('dyslexia-mode');
+    }
+  }
+
       setDailyQuote();
   
   // setupNavigation is now called inside renderSidebar()

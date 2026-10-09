@@ -1,3 +1,5 @@
+@import url('https://fonts.cdnfonts.com/css/opendyslexic');
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
@@ -1312,4 +1314,13 @@ select, input, textarea { font-family: inherit; }
 
 .student-only-hide {
   display: none !important;
+}
+
+/* DYSLEXIA MODE */
+body.dyslexia-mode,
+body.dyslexia-mode * {
+    font-family: 'OpenDyslexic', sans-serif !important;
+    letter-spacing: 0.05em !important;
+    word-spacing: 0.1em !important;
+    line-height: 1.6 !important;
 }
