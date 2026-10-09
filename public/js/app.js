@@ -40,8 +40,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   setupRoleVisibility();
   setupLogout();
-
-  setupNavigation();
+  
+  // setupNavigation is now called inside renderSidebar()
   setupUploadForm();
   setupGalleryFilters();
   setupExportImport();
@@ -103,6 +103,7 @@ function logout() {
 
 function setupRoleVisibility() {
   document.body.classList.add(`role-${authUser.role}`);
+  renderSidebar();
   
   if (authUser.role === 'teacher') {
     const quickAddBtn = document.getElementById('quickAddBtn');
@@ -117,6 +118,54 @@ function setupLogout() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', logout);
   }
+}
+
+function renderSidebar() {
+  const sidebarNav = document.getElementById('sidebarNav');
+  if (!sidebarNav) return;
+
+  if (authUser.role === 'teacher') {
+    sidebarNav.innerHTML = `
+      <a href="#" class="nav-item active" data-page="classrooms">
+          <i class="fas fa-chalkboard-teacher"></i>
+          <span>Sınıflarım</span>
+      </a>
+      <a href="#" class="nav-item" data-page="student-analysis">
+          <i class="fas fa-user-graduate"></i>
+          <span>Öğrenci Analizi</span>
+      </a>
+    `;
+  } else {
+    sidebarNav.innerHTML = `
+      <a href="#" class="nav-item active" data-page="dashboard">
+          <i class="fas fa-chart-pie"></i>
+          <span>Dashboard</span>
+      </a>
+      <a href="#" class="nav-item" data-page="gallery">
+          <i class="fas fa-images"></i>
+          <span>Soru Galerisi</span>
+      </a>
+      <a href="#" class="nav-item" data-page="upload">
+          <i class="fas fa-camera"></i>
+          <span>Soru Ekle</span>
+      </a>
+      <a href="#" class="nav-item" data-page="stats">
+          <i class="fas fa-chart-bar"></i>
+          <span>İstatistikler</span>
+      </a>
+      <a href="#" class="nav-item" data-page="my-classroom">
+          <i class="fas fa-school"></i>
+          <span>Sınıfım</span>
+      </a>
+      <a href="#" class="nav-item" data-page="my-comments">
+          <i class="fas fa-comments"></i>
+          <span>Yorumlarım</span>
+      </a>
+    `;
+  }
+  
+  // Re-attach navigation events to newly rendered items
+  setupNavigation();
 }
 
 // ==============================
