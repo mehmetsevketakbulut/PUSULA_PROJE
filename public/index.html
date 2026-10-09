@@ -302,6 +302,9 @@
                 <div style="position: relative; z-index: 2;">
                     <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -0.5px;">Haftalık Gelişim Karnesi</h2>
                     <p style="font-size: 1.1rem; opacity: 0.9; max-width: 600px;">Son 7 gündeki performansın, yapay zeka tarafından senin için analiz ediliyor.</p>
+                    <button id="downloadPdfBtn" class="btn-primary" style="margin-top: 1rem; background: rgba(0,0,0,0.5); border: none; display: none;">
+                        <i class="fas fa-file-pdf"></i> PDF Olarak İndir
+                    </button>
                 </div>
                 <i class="fas fa-award" style="position: absolute; right: 2rem; bottom: -1rem; font-size: 9rem; opacity: 0.15; z-index: 1;"></i>
             </div>
@@ -500,6 +503,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="js/app.js?v=1791562252810"></script>
 
     <!-- AI Similar Questions Modal -->
