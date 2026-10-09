@@ -1090,7 +1090,7 @@ app.get("/api/report-card/:studentId?", authMiddleware, async (req, res) => {
 
     const sortedTopics = Object.entries(topicCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
+      .slice(0, 5)
       .map(t => ({ name: t[0], count: t[1] }));
 
     let aiMessage = "Sisteme henüz yeterince soru eklemedin, çalışmaya devam!";
@@ -1101,7 +1101,7 @@ app.get("/api/report-card/:studentId?", authMiddleware, async (req, res) => {
 Öğrenci verileri:
 - Toplam çözdüğü/eklediği soru: ${allTimeCount}
 - Bu hafta eklediği soru: ${thisWeekCount}
-- En çok zorlandığı (en çok yanlış yaptığı) 3 konu: ${sortedTopics.map(t => `${t.name} (${t.count} hata)`).join(", ") || "Yok"}
+- En çok zorlandığı (en çok yanlış yaptığı) konular: ${sortedTopics.map(t => `${t.name} (${t.count} hata)`).join(", ") || "Yok"}
 
 Lütfen bu verileri analiz et. Öğrenciye hitap eden, samimi, teşvik edici 3-4 cümlelik kısa bir değerlendirme notu yaz.
 JSON dön: { "ai_message": "...", "status": "Kısa Durum Başlığı (örn: Harika Gidiyorsun)" }`;
