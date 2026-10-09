@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yanlış Defterim - YKS Yanlış Soru Takipçisi</title>
+    <title>Benim Koçum - YKS Yanlış Soru Takipçisi</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
         <div class="sidebar-header">
             <div class="logo">
                 <i class="fas fa-book-open"></i>
-                <span>Yanlış Defterim</span>
+                <span>Benim Koçum</span>
             </div>
             <button class="sidebar-close" id="sidebarClose">
                 <i class="fas fa-times"></i>
@@ -42,7 +42,7 @@
                 <i class="fas fa-bars"></i>
             </button>
             <div class="topbar-title">
-                <h1 id="pageTitle">Dashboard</h1>
+                <h1 id="pageTitle">Ana Sayfa</h1>
             </div>
             <div class="topbar-user" id="topbarUser">
                 <span class="user-name" id="userName"></span>
@@ -66,6 +66,11 @@
                 <div style="position: relative; z-index: 2;">
                     <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -0.5px;">Kişisel Gelişim Merkezin</h2>
                     <p style="font-size: 1.1rem; opacity: 0.9; max-width: 600px;">Hatalarını öğrenme fırsatına çevir. Yanlış yaptığın soruları hemen ekle, öğretmeninden geri bildirim al.</p>
+                    <div id="dailyQuoteBox" style="margin-top: 1.5rem; padding: 1rem 1.5rem; background: rgba(255,255,255,0.15); border-radius: 12px; border-left: 4px solid white; font-style: italic; font-weight: 500; font-size: 1.1rem; backdrop-filter: blur(5px); display: inline-block;">
+                        <i class="fas fa-quote-left" style="margin-right: 8px; opacity: 0.7;"></i>
+                        <span id="dailyQuoteText">Başarı, her gün tekrarlanan küçük çabaların toplamıdır.</span>
+                    </div>
+
                 </div>
                 <i class="fas fa-rocket" style="position: absolute; right: 2rem; bottom: -2rem; font-size: 10rem; opacity: 0.15; z-index: 1; transform: rotate(-15deg);"></i>
             </div>

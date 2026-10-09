@@ -1,5 +1,5 @@
 /**
- * Yanlış Defterim - Frontend (API Bağlantılı)
+ * Benim Koçum - Frontend (API Bağlantılı)
  * Pusula Takımı © 2026
  */
 
@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   setupRoleVisibility();
   setupLogout();
+      setDailyQuote();
   
   // setupNavigation is now called inside renderSidebar()
   setupUploadForm();
@@ -139,7 +140,7 @@ function renderSidebar() {
     sidebarNav.innerHTML = `
       <a href="#" class="nav-item active" data-page="dashboard">
           <i class="fas fa-chart-pie"></i>
-          <span>Dashboard</span>
+          <span>Ana Sayfa</span>
       </a>
       <a href="#" class="nav-item" data-page="gallery">
           <i class="fas fa-images"></i>
@@ -430,7 +431,7 @@ function setupNavigation() {
   const pageTitle = document.getElementById("pageTitle");
 
   const pageTitles = {
-    dashboard: "Dashboard",
+    dashboard: "Ana Sayfa",
     gallery: "Soru Galerisi",
     upload: "Soru Ekle",
     stats: "İstatistikler",
@@ -1358,3 +1359,24 @@ window.printStudyPlan = function() {
         document.body.classList.remove('print-study');
     }, 1000);
 };
+\n
+const quotes = [
+  "Başarı, her gün tekrarlanan küçük çabaların toplamıdır.",
+  "Zorluklar, seni hedefine hazırlayan antrenmanlardır.",
+  "Bugün yaptığın hatalar, yarınki doğrularının teminatıdır.",
+  "Şampiyonlar salonlarda değil, içlerindeki tutkuyla doğarlar.",
+  "Yapabileceğin kadarını yap, sonra biraz daha zorla.",
+  "Hayallerinin büyüklüğü, başarının boyutunu belirler.",
+  "Vazgeçmediğin sürece yenilmiş sayılmazsın.",
+  "En büyük rakibin dünkü sensin. Bugün onu geç!",
+  "Zorlanıyorsan, seviye atlıyorsun demektir."
+];
+
+function setDailyQuote() {
+  const quoteEl = document.getElementById('dailyQuoteText');
+  if (quoteEl) {
+    // Pick quote based on day of year to change daily
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+    quoteEl.textContent = quotes[dayOfYear % quotes.length];
+  }
+}
