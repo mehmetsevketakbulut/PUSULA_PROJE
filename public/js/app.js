@@ -1,5 +1,5 @@
 /**
- * Benim Koçum - Frontend (API Bağlantılı)
+ * Koçum Benim - Frontend (API Bağlantılı)
  * Pusula Takımı © 2026
  */
 
@@ -1359,7 +1359,7 @@ window.printStudyPlan = function() {
         document.body.classList.remove('print-study');
     }, 1000);
 };
-\n
+
 const quotes = [
   "Başarı, her gün tekrarlanan küçük çabaların toplamıdır.",
   "Zorluklar, seni hedefine hazırlayan antrenmanlardır.",
