@@ -1011,14 +1011,18 @@ Programı sadece JSON formatında dön. JSON yapısı şu şekilde olmalı:
   ]
 }`;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const aiResult = await model.generateContent(prompt);
-    let aiText = aiResult.response.text();
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    });
     
-    // Temizle (Markdown kod blokları varsa)
-    aiText = aiText.replace(/```json/g, "").replace(/```/g, "").trim();
-    
-    const planData = JSON.parse(aiText);
+    const planData = JSON.parse(response.choices[0].message.content);
 
     // 4. Save to Database
     const { data: savedPlan, error: insertError } = await supabase
