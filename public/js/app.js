@@ -1260,8 +1260,8 @@ async function loadReportCard() {
   if (!content) return;
   
   content.innerHTML = `
-    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
-        <i class="fas fa-spinner fa-spin fa-3x" style="color:var(--primary); margin-bottom: 1rem;"></i>
+    <div style="text-align: center; padding: 4rem 1rem; color: #636e72;">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color: #6C63FF; margin-bottom: 1rem;"></i>
         <p style="font-size: 1.1rem;">Karnen hazırlanıyor, lütfen bekle...</p>
     </div>
   `;
@@ -1270,66 +1270,66 @@ async function loadReportCard() {
     const data = await apiGet('/api/report-card');
     
     let trendIcon = "fa-minus";
-    let trendColor = "var(--text-muted)";
+    let trendColor = "#636e72";
     let trendText = "Değişim yok";
     
     if (data.trend > 0) {
       trendIcon = "fa-arrow-up";
-      trendColor = "var(--danger)";
+      trendColor = "#e74c3c";
       trendText = `${data.trend} soru arttı`;
     } else if (data.trend < 0) {
       trendIcon = "fa-arrow-down";
-      trendColor = "var(--success)";
+      trendColor = "#00C9A7";
       trendText = `${Math.abs(data.trend)} soru azaldı`;
     }
 
-    let topicsHtml = '<p style="color:var(--text-muted);">Yeterli veri yok.</p>';
+    let topicsHtml = '<p style="color:#636e72;">Yeterli veri yok.</p>';
     if (data.weakTopics && data.weakTopics.length > 0) {
       topicsHtml = data.weakTopics.map(t => `
-        <div style="background: var(--light-bg); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color);">
-          <span style="font-weight: 600; color: var(--dark);">${t.name}</span>
-          <span style="background: rgba(255,107,107,0.1); color: var(--danger); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700;">${t.count} Yanlış</span>
+        <div style="background: #F8F9FD; border-radius: 12px; padding: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0;">
+          <span style="font-weight: 600; color: #2D3436;">${t.name}</span>
+          <span style="background: rgba(231,76,60,0.1); color: #e74c3c; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700;">${t.count} Yanlış</span>
         </div>
       `).join('');
     }
 
     content.innerHTML = `
       <div class="dashboard-grid" style="margin-bottom: 2rem;">
-        <div class="card" style="border-top: 4px solid var(--primary);">
+        <div class="card" style="border-top: 4px solid #6C63FF; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
           <div class="card-body" style="text-align: center; padding: 2rem;">
-            <i class="fas fa-robot fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
-            <h3 style="color: var(--dark); margin-bottom: 1rem;">${data.status}</h3>
-            <p style="font-size: 1.1rem; line-height: 1.6; color: var(--text-color); font-style: italic;">"${data.aiMessage}"</p>
+            <i class="fas fa-robot fa-3x" style="color: #6C63FF; margin-bottom: 1rem;"></i>
+            <h3 style="color: #2D3436; margin-bottom: 1rem;">${data.status}</h3>
+            <p style="font-size: 1.1rem; line-height: 1.6; color: #636e72; font-style: italic;">"${data.aiMessage}"</p>
           </div>
         </div>
       </div>
       
       <div class="dashboard-grid">
-        <div class="card">
-          <div class="card-header">
-            <h2><i class="fas fa-chart-bar"></i> Sayısal Trend</h2>
+        <div class="card" style="background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
+          <div class="card-header" style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
+            <h2 style="color: #2D3436; font-size: 1.25rem;"><i class="fas fa-chart-bar" style="color:#6C63FF; margin-right:8px;"></i> Sayısal Trend</h2>
           </div>
           <div class="card-body" style="display: flex; justify-content: space-around; align-items: center; padding: 2rem 1rem;">
             <div style="text-align: center;">
-              <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Geçen Hafta</p>
-              <h3 style="font-size: 2.5rem; color: var(--dark);">${data.lastWeekCount}</h3>
+              <p style="color: #636e72; font-size: 0.9rem; margin-bottom: 0.5rem;">Geçen Hafta</p>
+              <h3 style="font-size: 2.5rem; color: #2D3436;">${data.lastWeekCount}</h3>
             </div>
             <div style="text-align: center; color: ${trendColor};">
               <i class="fas ${trendIcon} fa-2x" style="margin-bottom: 0.5rem;"></i>
               <p style="font-weight: 700;">${trendText}</p>
             </div>
             <div style="text-align: center;">
-              <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Bu Hafta</p>
-              <h3 style="font-size: 2.5rem; color: var(--dark);">${data.thisWeekCount}</h3>
+              <p style="color: #636e72; font-size: 0.9rem; margin-bottom: 0.5rem;">Bu Hafta</p>
+              <h3 style="font-size: 2.5rem; color: #2D3436;">${data.thisWeekCount}</h3>
             </div>
           </div>
         </div>
         
-        <div class="card">
-          <div class="card-header">
-            <h2><i class="fas fa-exclamation-triangle"></i> En Çok Zorlanılan Konular</h2>
+        <div class="card" style="background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
+          <div class="card-header" style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
+            <h2 style="color: #2D3436; font-size: 1.25rem;"><i class="fas fa-exclamation-triangle" style="color:#6C63FF; margin-right:8px;"></i> En Çok Zorlanılan Konular</h2>
           </div>
-          <div class="card-body">
+          <div class="card-body" style="padding: 1.5rem;">
             ${topicsHtml}
           </div>
         </div>
@@ -1345,7 +1345,7 @@ async function loadReportCard() {
           margin:       0.5,
           filename:     'Pusula_Gelisim_Karnesi.pdf',
           image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 2, useCORS: true },
+          html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
           jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
         };
         const originalText = dlBtn.innerHTML;
@@ -1358,7 +1358,7 @@ async function loadReportCard() {
   } catch (err) {
     console.error(err);
     content.innerHTML = `
-      <div style="text-align: center; padding: 4rem 1rem; color: var(--danger);">
+      <div style="text-align: center; padding: 4rem 1rem; color: #e74c3c;">
           <i class="fas fa-exclamation-circle fa-3x" style="margin-bottom: 1rem;"></i>
           <p style="font-size: 1.1rem;">Karnen yüklenirken bir hata oluştu.</p>
       </div>
