@@ -237,8 +237,8 @@ async function loadMyComments() {
     list.innerHTML = comments.map(c => `
       <div class="comment-card" style="background:var(--white); padding:1rem; border-radius:var(--radius-md); box-shadow:var(--card-shadow); margin-bottom:1rem; border-left: 4px solid var(--primary);">
         <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-          <strong style="color:var(--dark);"><i class="fas fa-chalkboard-teacher"></i> ${c.teacherName}</strong>
-          <small style="color:var(--text-muted);">${formatDate(c.createdAt)}</small>
+          <strong style="color:var(--dark);"><i class="fas fa-chalkboard-teacher"></i> ${c.teacher_name}</strong>
+          <small style="color:var(--text-muted);">${formatDate(c.created_at)}</small>
         </div>
         <p style="color:var(--dark); font-size:0.95rem; line-height:1.5;">${c.comment}</p>
       </div>
