@@ -1336,19 +1336,7 @@ async function loadReportCard() {
     const dlBtn = document.getElementById('downloadPdfBtn');
     if (dlBtn) {
       dlBtn.style.display = 'inline-block';
-      dlBtn.onclick = () => {
-        const element = document.getElementById('reportCardContent');
-        const opt = {
-          margin:       0.5,
-          filename:     'Pusula_Gelisim_Karnesi.pdf',
-          image:        { type: 'jpeg', quality: 0.98 },
-          html2canvas:  { scale: 4, useCORS: true, backgroundColor: '#ffffff', letterRendering: true },
-          jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-        };
-        const originalText = dlBtn.innerHTML;
-        dlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İndiriliyor...';
-        
-      };
+      dlBtn.onclick = () => { window.print(); };
     }
   } catch (err) {
     console.error(err);
