@@ -149,6 +149,10 @@ function renderSidebar() {
           <i class="fas fa-camera"></i>
           <span>Soru Ekle</span>
       </a>
+      <a href="#" class="nav-item" data-page="study-plan">
+          <i class="fas fa-calendar-alt"></i>
+          <span>Çalışma Programım</span>
+      </a>
       <a href="#" class="nav-item" data-page="stats">
           <i class="fas fa-chart-bar"></i>
           <span>İstatistikler</span>
@@ -428,6 +432,7 @@ function setupNavigation() {
     stats: "İstatistikler",
     "my-classroom": "Sınıfım",
     "my-comments": "Yorumlarım",
+    "study-plan": "Çalışma Programım",
     classrooms: "Sınıflarım",
     "student-analysis": "Öğrenci Analizi"
   };
@@ -448,6 +453,7 @@ function setupNavigation() {
       if (page === "stats") loadStats();
       if (page === "my-classroom") loadMyClassroom();
       if (page === "my-comments") loadMyComments();
+      if (page === "study-plan") loadStudyPlan();
       if (page === "classrooms") loadTeacherClassrooms();
     });
   });
@@ -1169,3 +1175,87 @@ document.addEventListener('click', (e) => {
     e.target.classList.remove('active');
   }
 });
+
+// ==============================
+// STUDY PLAN LOGIC
+// ==============================
+
+async function loadStudyPlan() {
+  const card = document.getElementById('studyPlanCard');
+  const emptyState = document.getElementById('studyPlanEmptyState');
+  const motivationEl = document.getElementById('studyPlanMotivation');
+  const scheduleEl = document.getElementById('studyPlanSchedule');
+  
+  if (!card || !emptyState) return;
+
+  try {
+    const data = await apiGet('/api/study-plan');
+    if (data && data.plan) {
+      emptyState.style.display = 'none';
+      card.style.display = 'block';
+      
+      const plan = data.plan;
+      motivationEl.innerHTML = `<i class="fas fa-quote-left"></i> ${plan.motivation_message || 'Harika gidiyorsun!'} <i class="fas fa-quote-right"></i>`;
+      
+      if (plan.schedule && Array.isArray(plan.schedule)) {
+        scheduleEl.innerHTML = plan.schedule.map(dayPlan => `
+          <div style="background: var(--light-bg); border-radius: var(--radius-md); padding: 1.5rem; border: 1px solid var(--border-color); box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+            <h4 style="color: var(--primary); margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 2px solid var(--primary-light); padding-bottom: 0.5rem;">
+              <i class="far fa-calendar-alt"></i> ${dayPlan.day}
+            </h4>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+              ${dayPlan.tasks.map(task => `
+                <li style="margin-bottom: 0.75rem; display: flex; align-items: flex-start; gap: 0.5rem; color: var(--dark); font-size: 0.95rem; line-height: 1.4;">
+                  <i class="fas fa-check-circle" style="color: var(--success); margin-top: 0.2rem;"></i>
+                  <span>${task}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        `).join('');
+      }
+    } else {
+      emptyState.style.display = 'block';
+      card.style.display = 'none';
+    }
+  } catch (err) {
+    console.error(err);
+    emptyState.style.display = 'block';
+    card.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const genBtn = document.getElementById('generateStudyPlanBtn');
+  if (genBtn) {
+    genBtn.addEventListener('click', async () => {
+      const originalHTML = genBtn.innerHTML;
+      genBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yapay Zeka Programı Hazırlıyor...';
+      genBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/study-plan/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showToast("Yapay zeka haftalık programını hazırladı! 🎯", "success");
+          loadStudyPlan();
+        } else {
+          showToast(data.error || "Program oluşturulamadı.", "error");
+        }
+      } catch (err) {
+        showToast("Bağlantı hatası.", "error");
+      } finally {
+        genBtn.innerHTML = originalHTML;
+        genBtn.disabled = false;
+      }
+    });
+  }
+});
+

@@ -296,6 +296,37 @@
             </div>
         </section>
 
+        <!-- Student - Study Plan page -->
+        <section class="page" id="page-study-plan">
+            <div class="role-hero student-hero" style="background: linear-gradient(135deg, #FF9A9E, #FECFEF); color: var(--dark); padding: 2.5rem; border-radius: var(--radius-lg); margin-bottom: 2rem; box-shadow: 0 15px 30px rgba(255, 154, 158, 0.2); position: relative; overflow: hidden;">
+                <div style="position: relative; z-index: 2;">
+                    <h2 style="font-size: 2.2rem; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -0.5px;">Yapay Zeka Çalışma Koçun</h2>
+                    <p style="font-size: 1.1rem; opacity: 0.9; max-width: 600px;">Senin için özel olarak analiz edilen eksik konularına göre hazırlanmış haftalık çalışma programı.</p>
+                    <button id="generateStudyPlanBtn" class="btn-primary" style="margin-top: 1rem; background: var(--primary); box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);">
+                        <i class="fas fa-magic"></i> Yeni Program Oluştur
+                    </button>
+                </div>
+                <i class="fas fa-brain" style="position: absolute; right: 2rem; bottom: -2rem; font-size: 10rem; opacity: 0.1; z-index: 1;"></i>
+            </div>
+            
+            <div class="card" id="studyPlanCard" style="display: none;">
+                <div class="card-header">
+                    <h2><i class="fas fa-calendar-check"></i> Haftalık Çalışma Programın</h2>
+                </div>
+                <div class="card-body">
+                    <p id="studyPlanMotivation" style="font-style: italic; color: var(--primary); margin-bottom: 1.5rem; text-align: center; font-weight: 500; font-size: 1.1rem;"></p>
+                    <div id="studyPlanSchedule" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <!-- JS renders schedule here -->
+                    </div>
+                </div>
+            </div>
+            <div id="studyPlanEmptyState" class="empty-state">
+                <div class="empty-icon"><i class="fas fa-calendar-times"></i></div>
+                <h3>Henüz Programın Yok</h3>
+                <p>Eksiklerini analiz etmem için "Yeni Program Oluştur" butonuna tıkla. Yeterli sorunuz yoksa önce biraz yanlış soru yüklemelisiniz.</p>
+            </div>
+        </section>
+
         <!-- Student - My Classroom page -->
         <section class="page" id="page-my-classroom">
             <div class="card">

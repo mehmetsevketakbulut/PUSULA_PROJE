@@ -945,6 +945,98 @@ app.get("/api/export", authMiddleware, async (req, res) => {
 });
 
 // ==============================
+// STUDY PLAN ENDPOINTS
+// ==============================
+
+// Get current study plan
+app.get("/api/study-plan", authMiddleware, studentOnly, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('study_plans')
+      .select('*')
+      .eq('student_id', req.user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is not found
+    
+    res.json({ plan: data ? data.plan_data : null });
+  } catch (error) {
+    console.error("Çalışma programı getirme hatası:", error);
+    res.status(500).json({ error: "Program getirilemedi" });
+  }
+});
+
+// Generate new study plan using AI
+app.post("/api/study-plan/generate", authMiddleware, studentOnly, async (req, res) => {
+  try {
+    // 1. Fetch all questions for this student
+    const { data: questions, error } = await supabase
+      .from('questions')
+      .select('subject, topic')
+      .eq('user_id', req.user.id);
+
+    if (error) throw error;
+    
+    if (!questions || questions.length < 3) {
+      return res.status(400).json({ error: "Yapay zekanın analiz yapabilmesi için en az 3 yanlış soru eklemelisiniz." });
+    }
+
+    // 2. Analyze weak topics
+    const topicMap = {};
+    questions.forEach(q => {
+      if (q.topic) {
+        const key = `${q.subject} - ${q.topic}`;
+        topicMap[key] = (topicMap[key] || 0) + 1;
+      }
+    });
+
+    const weakTopics = Object.entries(topicMap)
+      .sort((a, b) => b[1] - a[1]) // sort by frequency
+      .slice(0, 5) // top 5 weakest
+      .map(entry => entry[0])
+      .join(", ");
+
+    // 3. Prompt Gemini AI
+    const prompt = `Sen uzman bir eğitim koçusun. Bir öğrencinin şu ana kadar en çok yanlış yaptığı konular şunlar (sıklık sırasına göre): ${weakTopics}.
+Bu öğrenci için bu eksiklerini kapatmasına yönelik Pazartesi'den Pazar'a uzanan detaylı bir haftalık çalışma programı hazırla.
+Programı sadece JSON formatında dön. JSON yapısı şu şekilde olmalı:
+{
+  "motivation_message": "Öğrenciyi motive edecek kısa bir mesaj",
+  "schedule": [
+    { "day": "Pazartesi", "tasks": ["Görev 1", "Görev 2"] },
+    { "day": "Salı", "tasks": ["Görev 1", "Görev 2"] }
+    // ... diğer günler
+  ]
+}`;
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const aiResult = await model.generateContent(prompt);
+    let aiText = aiResult.response.text();
+    
+    // Temizle (Markdown kod blokları varsa)
+    aiText = aiText.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    const planData = JSON.parse(aiText);
+
+    // 4. Save to Database
+    const { data: savedPlan, error: insertError } = await supabase
+      .from('study_plans')
+      .insert({ student_id: req.user.id, plan_data: planData })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    res.json({ plan: savedPlan.plan_data });
+  } catch (error) {
+    console.error("Yapay zeka program oluşturma hatası:", error);
+    res.status(500).json({ error: "Yapay zeka şu an program oluşturamadı, lütfen tekrar deneyin." });
+  }
+});
+
+// ==============================
 // STATIC FILES & SPA FALLBACK
 // ==============================
 
