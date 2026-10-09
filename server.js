@@ -322,7 +322,7 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, name, email, role, avatar')
+      .select('*')
       .eq('id', req.user.id)
       .single();
     if (error || !user) throw error;
@@ -348,11 +348,16 @@ app.post("/api/auth/update-profile", authMiddleware, async (req, res) => {
       .update(updates)
       .eq('id', req.user.id);
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST204') {
+         throw new Error("Veritabanı sütunu eksik! Lütfen SQL'i çalıştırın.");
+      }
+      throw error;
+    }
     res.json({ success: true, message: "Profil güncellendi" });
   } catch (error) {
     console.error("Profil güncelleme hatası:", error);
-    res.status(500).json({ error: "Profil güncellenirken hata oluştu" });
+    res.status(500).json({ error: error.message || "Profil güncellenirken hata oluştu" });
   }
 });
 
