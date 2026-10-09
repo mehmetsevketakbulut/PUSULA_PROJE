@@ -1267,7 +1267,7 @@ async function loadReportCard() {
   `;
 
   try {
-    const data = await apiGet('/api/report-card');
+    const data = await apiGet('/api/report-card?t=' + Date.now());
     
     let trendIcon = "fa-minus";
     let trendColor = "#333";
@@ -1307,17 +1307,14 @@ async function loadReportCard() {
       <div class="dashboard-grid">
         <div class="card" style="background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
           <div class="card-header" style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
-            <h2 style="color: #000; font-size: 1.25rem;"><i class="fas fa-chart-bar" style="color:#6C63FF; margin-right:8px;"></i> Sayısal Trend</h2>
+            <h2 style="color: #000; font-size: 1.25rem;"><i class="fas fa-chart-bar" style="color:#6C63FF; margin-right:8px;"></i> Genel Durum Özeti</h2>
           </div>
           <div class="card-body" style="display: flex; justify-content: space-around; align-items: center; padding: 2rem 1rem;">
             <div style="text-align: center;">
-              <p style="color: #333; font-size: 0.9rem; margin-bottom: 0.5rem;">Geçen Hafta</p>
-              <h3 style="font-size: 2.5rem; color: #000;">${data.lastWeekCount}</h3>
+              <p style="color: #333; font-size: 0.9rem; margin-bottom: 0.5rem;">Tüm Zamanlar</p>
+              <h3 style="font-size: 2.5rem; color: #000;">${data.allTimeCount}</h3>
             </div>
-            <div style="text-align: center; color: ${trendColor};">
-              <i class="fas ${trendIcon} fa-2x" style="margin-bottom: 0.5rem;"></i>
-              <p style="font-weight: 700;">${trendText}</p>
-            </div>
+            <div style="text-align: center; color: #00C9A7;"><i class="fas fa-fire fa-2x" style="margin-bottom: 0.5rem;"></i><p style="font-weight: 700;">Aktif Çalışma</p></div>
             <div style="text-align: center;">
               <p style="color: #333; font-size: 0.9rem; margin-bottom: 0.5rem;">Bu Hafta</p>
               <h3 style="font-size: 2.5rem; color: #000;">${data.thisWeekCount}</h3>
@@ -1350,9 +1347,7 @@ async function loadReportCard() {
         };
         const originalText = dlBtn.innerHTML;
         dlBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> İndiriliyor...';
-        html2pdf().set(opt).from(element).save().then(() => {
-          dlBtn.innerHTML = originalText;
-        });
+        
       };
     }
   } catch (err) {

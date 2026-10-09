@@ -1191,3 +1191,29 @@ select, input, textarea { font-family: inherit; }
   .topbar-actions span { display: none; }
   .difficulty-bars { flex-wrap: wrap; }
 }
+
+/* NATIVE PDF PRINT STYLES FOR REPORT CARD */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #reportCardContent, #reportCardContent * {
+    visibility: visible;
+  }
+  #reportCardContent {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  #downloadPdfBtn, .sidebar, .hamburger, .mobile-overlay {
+    display: none !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+}

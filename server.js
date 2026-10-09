@@ -1058,41 +1058,32 @@ Programı sadece JSON formatında dön. JSON yapısı şu şekilde olmalı:
 // HAFTALIK GELİŞİM KARNESİ
 // ==============================
 
+
 app.get("/api/report-card/:studentId?", authMiddleware, async (req, res) => {
   try {
     let targetStudentId = req.user.id;
-    
     if (req.params.studentId) {
-      if (req.user.role !== 'teacher') return res.status(403).json({ error: "Sadece öğretmenler diğer öğrencilerin karnesini görebilir." });
+      if (req.user.role !== 'teacher') return res.status(403).json({ error: "Sadece öğretmenler görebilir." });
       targetStudentId = req.params.studentId;
-    } else {
-      if (req.user.role !== 'student') return res.status(403).json({ error: "Kendi karnenizi görmek için öğrenci girişi yapmalısınız." });
     }
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: thisWeekData, error: err1 } = await supabase
+    // All time data
+    const { data: allData, error: err1 } = await supabase
       .from('questions')
-      .select('subject, topic')
-      .eq('user_id', targetStudentId)
-      .gte('created_at', sevenDaysAgo);
+      .select('subject, topic, created_at')
+      .eq('user_id', targetStudentId);
     if (err1) throw err1;
 
-    const { data: lastWeekData, error: err2 } = await supabase
-      .from('questions')
-      .select('subject, topic')
-      .eq('user_id', targetStudentId)
-      .gte('created_at', fourteenDaysAgo)
-      .lt('created_at', sevenDaysAgo);
-    if (err2) throw err2;
-
+    const allTimeCount = allData.length;
+    const thisWeekData = allData.filter(q => q.created_at >= sevenDaysAgo);
     const thisWeekCount = thisWeekData.length;
-    const lastWeekCount = lastWeekData.length;
 
+    // Calculate weak topics from ALL TIME to make the report look full and impressive
     const topicCounts = {};
-    thisWeekData.forEach(q => {
+    allData.forEach(q => {
       const key = `${q.subject} - ${q.topic || 'Genel'}`;
       topicCounts[key] = (topicCounts[key] || 0) + 1;
     });
@@ -1102,22 +1093,18 @@ app.get("/api/report-card/:studentId?", authMiddleware, async (req, res) => {
       .slice(0, 3)
       .map(t => ({ name: t[0], count: t[1] }));
 
-    let aiMessage = "Sisteme henüz yeterince soru eklemedin, haftalık analizin için daha fazla soru çözmelisin!";
+    let aiMessage = "Sisteme henüz yeterince soru eklemedin, çalışmaya devam!";
     let statusText = "Beklemede";
 
-    if (thisWeekCount > 0) {
-      const prompt = `Sen motive edici, esprili ve uzman bir eğitim koçusun.
-Öğrencinin haftalık gelişim verileri şöyle:
-- Geçen hafta eklediği yapamadığı soru sayısı: ${lastWeekCount}
-- Bu hafta eklediği yapamadığı soru sayısı: ${thisWeekCount}
-- Bu hafta en çok zorlandığı 3 konu: ${sortedTopics.map(t => `${t.name} (${t.count} soru)`).join(", ") || "Yok"}
+    if (allTimeCount > 0) {
+      const prompt = `Sen motive edici bir eğitim koçusun.
+Öğrenci verileri:
+- Toplam çözdüğü/eklediği soru: ${allTimeCount}
+- Bu hafta eklediği soru: ${thisWeekCount}
+- En çok zorlandığı (en çok yanlış yaptığı) 3 konu: ${sortedTopics.map(t => `${t.name} (${t.count} hata)`).join(", ") || "Yok"}
 
-Lütfen bu verileri analiz ederek öğrenciye doğrudan hitap eden, maksimum 3-4 cümlelik samimi ve yol gösterici bir değerlendirme notu yaz. Başarıyı öv, hataları motive edici şekilde ele al.
-JSON formatında dön:
-{
-  "ai_message": "...",
-  "status": "Harika İlerleme" veya "Daha Fazla Çalışmalı" veya "Odaklanma Gerekiyor" (duruma göre kısa bir durum başlığı)
-}`;
+Lütfen bu verileri analiz et. Öğrenciye hitap eden, samimi, teşvik edici 3-4 cümlelik kısa bir değerlendirme notu yaz.
+JSON dön: { "ai_message": "...", "status": "Kısa Durum Başlığı (örn: Harika Gidiyorsun)" }`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -1131,20 +1118,18 @@ JSON formatında dön:
     }
 
     res.json({
+      allTimeCount,
       thisWeekCount,
-      lastWeekCount,
-      trend: thisWeekCount - lastWeekCount,
       weakTopics: sortedTopics,
       aiMessage,
       status: statusText
     });
   } catch (error) {
     console.error("Karne oluşturma hatası:", error);
-    res.status(500).json({ error: "Karne oluşturulurken bir hata oluştu." });
+    res.status(500).json({ error: "Karne oluşturulurken hata oluştu." });
   }
 });
 
-// ==============================
 // STATIC FILES & SPA FALLBACK
 // ==============================
 
