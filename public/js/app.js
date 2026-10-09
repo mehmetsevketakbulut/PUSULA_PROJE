@@ -153,6 +153,10 @@ function renderSidebar() {
           <i class="fas fa-calendar-alt"></i>
           <span>Çalışma Programım</span>
       </a>
+      <a href="#" class="nav-item" data-page="report-card">
+          <i class="fas fa-award"></i>
+          <span>Karnem</span>
+      </a>
       <a href="#" class="nav-item" data-page="stats">
           <i class="fas fa-chart-bar"></i>
           <span>İstatistikler</span>
@@ -454,6 +458,7 @@ function setupNavigation() {
       if (page === "my-classroom") loadMyClassroom();
       if (page === "my-comments") loadMyComments();
       if (page === "study-plan") loadStudyPlan();
+      if (page === "report-card") loadReportCard();
       if (page === "classrooms") loadTeacherClassrooms();
     });
   });
@@ -1246,4 +1251,98 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ==============================
+// HAFTALIK GELİŞİM KARNESİ
+// ==============================
+async function loadReportCard() {
+  const content = document.getElementById('reportCardContent');
+  if (!content) return;
+  
+  content.innerHTML = `
+    <div style="text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
+        <i class="fas fa-spinner fa-spin fa-3x" style="color:var(--primary); margin-bottom: 1rem;"></i>
+        <p style="font-size: 1.1rem;">Karnen hazırlanıyor, lütfen bekle...</p>
+    </div>
+  `;
+
+  try {
+    const data = await apiGet('/api/report-card');
+    
+    let trendIcon = "fa-minus";
+    let trendColor = "var(--text-muted)";
+    let trendText = "Değişim yok";
+    
+    if (data.trend > 0) {
+      trendIcon = "fa-arrow-up";
+      trendColor = "var(--danger)";
+      trendText = `${data.trend} soru arttı`;
+    } else if (data.trend < 0) {
+      trendIcon = "fa-arrow-down";
+      trendColor = "var(--success)";
+      trendText = `${Math.abs(data.trend)} soru azaldı`;
+    }
+
+    let topicsHtml = '<p style="color:var(--text-muted);">Yeterli veri yok.</p>';
+    if (data.weakTopics && data.weakTopics.length > 0) {
+      topicsHtml = data.weakTopics.map(t => `
+        <div style="background: var(--light-bg); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color);">
+          <span style="font-weight: 600; color: var(--dark);">${t.name}</span>
+          <span style="background: rgba(255,107,107,0.1); color: var(--danger); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700;">${t.count} Yanlış</span>
+        </div>
+      `).join('');
+    }
+
+    content.innerHTML = `
+      <div class="dashboard-grid" style="margin-bottom: 2rem;">
+        <div class="card" style="border-top: 4px solid var(--primary);">
+          <div class="card-body" style="text-align: center; padding: 2rem;">
+            <i class="fas fa-robot fa-3x" style="color: var(--primary); margin-bottom: 1rem;"></i>
+            <h3 style="color: var(--dark); margin-bottom: 1rem;">${data.status}</h3>
+            <p style="font-size: 1.1rem; line-height: 1.6; color: var(--text-color); font-style: italic;">"${data.aiMessage}"</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-chart-bar"></i> Sayısal Trend</h2>
+          </div>
+          <div class="card-body" style="display: flex; justify-content: space-around; align-items: center; padding: 2rem 1rem;">
+            <div style="text-align: center;">
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Geçen Hafta</p>
+              <h3 style="font-size: 2.5rem; color: var(--dark);">${data.lastWeekCount}</h3>
+            </div>
+            <div style="text-align: center; color: ${trendColor};">
+              <i class="fas ${trendIcon} fa-2x" style="margin-bottom: 0.5rem;"></i>
+              <p style="font-weight: 700;">${trendText}</p>
+            </div>
+            <div style="text-align: center;">
+              <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.5rem;">Bu Hafta</p>
+              <h3 style="font-size: 2.5rem; color: var(--dark);">${data.thisWeekCount}</h3>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h2><i class="fas fa-exclamation-triangle"></i> En Çok Zorlanılan Konular</h2>
+          </div>
+          <div class="card-body">
+            ${topicsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    content.innerHTML = `
+      <div style="text-align: center; padding: 4rem 1rem; color: var(--danger);">
+          <i class="fas fa-exclamation-circle fa-3x" style="margin-bottom: 1rem;"></i>
+          <p style="font-size: 1.1rem;">Karnen yüklenirken bir hata oluştu.</p>
+      </div>
+    `;
+  }
+}
 
