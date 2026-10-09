@@ -1234,23 +1234,11 @@ document.addEventListener('DOMContentLoaded', () => {
       genBtn.disabled = true;
 
       try {
-        const response = await fetch('/api/study-plan/generate', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-          showToast("Yapay zeka haftalık programını hazırladı! 🎯", "success");
-          loadStudyPlan();
-        } else {
-          showToast(data.error || "Program oluşturulamadı.", "error");
-        }
+        const data = await apiPost('/api/study-plan/generate', {});
+        showToast("Yapay zeka haftalık programını hazırladı! 🎯", "success");
+        loadStudyPlan();
       } catch (err) {
-        showToast("Bağlantı hatası.", "error");
+        showToast(err.message || "Bağlantı hatası.", "error");
       } finally {
         genBtn.innerHTML = originalHTML;
         genBtn.disabled = false;
