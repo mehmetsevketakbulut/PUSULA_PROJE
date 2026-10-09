@@ -199,6 +199,51 @@ async function analyzeQuestion(imageBuffer, mimeType, fileSize, subject) {
 }
 
 // ==============================
+// BENZER SORU ÜRETME (AI)
+// ==============================
+
+app.post("/api/generate-similar", authMiddleware, async (req, res) => {
+  try {
+    const { subject, topic } = req.body;
+    if (!subject || !topic) {
+      return res.status(400).json({ error: "Ders ve Konu bilgisi gerekli" });
+    }
+
+    const prompt = `Sen bir YKS uzmanısın. Öğrenci '${subject}' dersinin '${topic}' konusunda bir soruyu yanlış yaptı. Onun bu konuyu pekiştirmesi için YKS zorluğunda, görsel gerektirmeyen (sadece metin veya formül tabanlı) 3 adet çoktan seçmeli (A, B, C, D, E) soru üret.
+    
+    Yanıtını MUTLAKA aşağıdaki JSON formatında ver, fazladan yazı yazma:
+    {
+      "questions": [
+        {
+          "questionText": "Soru metni...",
+          "options": {
+            "A": "A şıkkı metni",
+            "B": "B şıkkı metni",
+            "C": "C şıkkı metni",
+            "D": "D şıkkı metni",
+            "E": "E şıkkı metni"
+          },
+          "correctAnswer": "A",
+          "solution": "Sorunun adım adım çözümü..."
+        }
+      ]
+    }`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }]
+    });
+    
+    const parsed = JSON.parse(response.choices[0].message.content);
+    res.json({ success: true, questions: parsed.questions });
+  } catch (error) {
+    console.error("AI Benzer Soru Hatası:", error);
+    res.status(500).json({ error: "Benzer soru üretilirken hata oluştu." });
+  }
+});
+
+// ==============================
 // AUTH ENDPOINTLERİ
 // ==============================
 

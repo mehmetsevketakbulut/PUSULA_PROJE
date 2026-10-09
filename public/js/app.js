@@ -813,7 +813,7 @@ async function loadGallery() {
           <div class="card-tags">${(q.tags||[]).map(t => `<span class="tag">#${t}</span>`).join("")}</div>
           <div class="card-footer">
             <span class="card-date">${formatDate(q.dateAdded)}</span>
-            <button class="btn-icon btn-delete" onclick="event.stopPropagation(); handleDelete(${q.id})" title="Sil">🗑️</button>
+            <div style="display: flex; gap: 0.5rem; align-items: center;"><button class="btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 20px; box-shadow: 0 2px 4px rgba(108, 99, 255, 0.3);" onclick="event.stopPropagation(); window.generateSimilarQuestions(this.getAttribute('data-sub'), this.getAttribute('data-top'))" data-sub="${q.subject}" data-top="${q.topic}"><i class="fas fa-robot"></i> Benzer Çöz</button><button class="btn-icon btn-delete" onclick="event.stopPropagation(); handleDelete(${q.id})" title="Sil">🗑️</button></div>
           </div>
         </div>
       </div>
@@ -994,7 +994,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==============================
 
 function setupExportImport() {
-  document.getElementById("exportBtn").addEventListener("click", async () => {
+  const eBtn = document.getElementById("exportBtn"); if(eBtn) eBtn.addEventListener("click", async () => {
     try {
       const data = await apiGet("/api/export");
       if (data.length === 0) { showToast("Dışa aktarılacak veri yok", "warning"); return; }
@@ -1011,7 +1011,7 @@ function setupExportImport() {
     }
   });
 
-  document.getElementById("importBtn").addEventListener("click", () => {
+  const iBtn = document.getElementById("importBtn"); if(iBtn) iBtn.addEventListener("click", () => {
     document.getElementById("importFile").click();
   });
 }
@@ -1027,3 +1027,149 @@ function formatDate(iso) {
 function truncate(str, len) {
   return str.length <= len ? str : str.substring(0, len) + "...";
 }
+
+
+// ==============================
+// AI BENZER SORU (PRATİK) MODU
+// ==============================
+
+window.generateSimilarQuestions = async function(subject, topic) {
+  let modal = document.getElementById("aiQuizModal");
+  let content = document.getElementById("aiQuizContent");
+  
+  // DYNAMIC MODAL CREATION (prevents HTML cache issues)
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'confirm-overlay';
+    modal.id = 'aiQuizModal';
+    modal.style.alignItems = 'flex-start';
+    modal.style.paddingTop = '5vh';
+    modal.style.zIndex = '2000';
+    
+    modal.innerHTML = '<div class="card" style="width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; background: var(--white); margin: 0 auto;">' +
+        '<div class="card-header" style="display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--white); z-index: 10; border-bottom: 1px solid #eee;">' +
+            '<h2 style="color: var(--primary);"><i class="fas fa-robot"></i> AI Pratik Modu</h2>' +
+            '<button class="btn-icon" id="aiQuizClose" style="color: var(--danger);"><i class="fas fa-times"></i></button>' +
+        '</div>' +
+        '<div class="card-body" id="aiQuizContent" style="padding: 1.5rem;"></div>' +
+    '</div>';
+    document.body.appendChild(modal);
+    content = document.getElementById('aiQuizContent');
+    
+    document.getElementById('aiQuizClose').addEventListener('click', () => {
+      modal.classList.remove('active');
+    });
+  }
+  
+  modal.classList.add("active");
+  content.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">' +
+    '<i class="fas fa-spinner fa-spin fa-3x" style="color:var(--primary); margin-bottom:1rem;"></i>' +
+    '<h3 style="color:var(--dark);">Yapay Zeka Soruları Hazırlıyor...</h3>' +
+    '<p>Senin için \'' + topic + '\' konusunda yepyeni sorular üretiliyor.</p>' +
+  '</div>';
+
+  try {
+    const response = await apiPost("/api/generate-similar", { subject, topic });
+    
+    if (response.success && response.questions) {
+      let html = '<div style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px dashed #eee;">' +
+        '<h3 style="color: var(--dark);"><i class="fas fa-bullseye" style="color:var(--primary);"></i> Hedef Konu: ' + topic + '</h3>' +
+        '<p style="color: var(--text-muted); font-size: 0.9rem;">Bu konuyla ilgili eksiklerini kapatman için 3 soru hazırladım. Başarılar!</p>' +
+      '</div>';
+      
+      response.questions.forEach((q, idx) => {
+        html += '<div class="quiz-card card" style="margin-bottom: 1.5rem; border-left: 4px solid var(--primary); padding: 1.5rem; background: #fafbff;">' +
+            '<h4 style="margin-bottom: 1rem; color: var(--primary);">Soru ' + (idx + 1) + '</h4>' +
+            '<p style="margin-bottom: 1.5rem; line-height: 1.6; font-size: 1.05rem; color: var(--dark); font-weight: 500;">' + q.questionText + '</p>' +
+            '<div class="options" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom: 1.5rem;">';
+              
+        Object.entries(q.options).forEach(([key, val]) => {
+          html += '<label style="padding: 0.8rem 1rem; border: 2px solid #eee; border-radius: 8px; cursor: pointer; display: flex; gap: 1rem; align-items: flex-start; transition: all 0.2s; background: var(--white);" onmouseover="this.style.borderColor=\'var(--primary)\'" onmouseout="this.style.borderColor=\'#eee\'">' +
+                  '<input type="radio" name="q' + idx + '" value="' + key + '" style="margin-top: 4px; transform: scale(1.2);">' +
+                  '<span style="color: var(--dark);"><strong>' + key + ')</strong> ' + val + '</span>' +
+                '</label>';
+        });
+        
+        // Use custom data attributes to pass the string safely instead of embedding in onclick
+        html += '</div>' +
+            '<button class="btn-primary check-answer-btn" style="padding: 0.6rem 1.2rem; width: 100%; border-radius: 8px;" data-correct="' + q.correctAnswer + '">' +
+              '<i class="fas fa-check"></i> Cevabı Kontrol Et' +
+            '</button>' +
+            '<div class="answer-result" style="margin-top: 1.5rem; display: none; padding: 1.5rem; border-radius: 8px; background: var(--white); box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eee;"></div>' +
+            '<div class="hidden-solution" style="display:none;">' + q.solution + '</div>' +
+          '</div>';
+      });
+      
+      content.innerHTML = html;
+      
+      // Attach event listeners dynamically to avoid quote parsing issues in HTML
+      content.querySelectorAll('.check-answer-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const card = this.closest('.quiz-card');
+          const correct = this.getAttribute('data-correct');
+          const solutionStr = card.querySelector('.hidden-solution').textContent;
+          window.checkAiAnswer(this, correct, solutionStr);
+        });
+      });
+      
+    } else {
+      content.innerHTML = '<p style="color:var(--danger); text-align:center;">Sorular üretilemedi. Lütfen tekrar dene.</p>';
+    }
+  } catch (error) {
+    content.innerHTML = '<p style="color:var(--danger); text-align:center;">Hata: ' + error.message + '</p>';
+  }
+}
+
+window.checkAiAnswer = function(btn, correct, solution) {
+  const card = btn.closest('.quiz-card');
+  const selected = card.querySelector('input[type="radio"]:checked');
+  const resultDiv = card.querySelector('.answer-result');
+  
+  if (!selected) {
+    showToast("Lütfen bir şık seçin", "warning");
+    return;
+  }
+  
+  const isCorrect = selected.value === correct;
+  btn.style.display = 'none';
+  resultDiv.style.display = 'block';
+  
+  card.querySelectorAll('input[type="radio"]').forEach(radio => radio.disabled = true);
+  
+  if (isCorrect) {
+    resultDiv.innerHTML = '<h3 style="color:var(--success); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-check-circle fa-lg"></i> Tebrikler, Doğru Cevap!</h3>';
+  } else {
+    resultDiv.innerHTML = '<h3 style="color:var(--danger); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;"><i class="fas fa-times-circle fa-lg"></i> Yanlış Cevap. Doğru Şık: ' + correct + '</h3>';
+  }
+  
+  try {
+    let parsedSolution = solution;
+    if (typeof marked !== "undefined") {
+      parsedSolution = marked.parse(solution);
+    }
+    resultDiv.innerHTML += '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #ccc;">' +
+      '<h4 style="color:var(--dark); margin-bottom:0.5rem;"><i class="fas fa-lightbulb" style="color:var(--warning)"></i> Adım Adım Çözüm:</h4>' +
+      '<div style="line-height:1.6; color:var(--text-muted);">' + parsedSolution + '</div>' +
+    '</div>';
+  } catch(e) {
+    resultDiv.innerHTML += '<p>' + solution + '</p>';
+  }
+}
+
+// Global close handler for AI Quiz Modal
+document.addEventListener('click', (e) => {
+  const closeBtn = e.target.closest('#aiQuizClose');
+  if (closeBtn) {
+    const modal = document.getElementById('aiQuizModal');
+    if (modal) {
+      modal.classList.remove('active');
+    }
+  }
+});
+
+// Overlay background close handler for AI Quiz Modal
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'aiQuizModal') {
+    e.target.classList.remove('active');
+  }
+});

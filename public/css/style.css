@@ -994,6 +994,7 @@ select, input, textarea { font-family: inherit; }
   position: absolute;
   top: 1.5rem;
   right: 1.5rem;
+  z-index: 2010;
   background: rgba(255,255,255,0.1);
   border: none;
   color: var(--white);
