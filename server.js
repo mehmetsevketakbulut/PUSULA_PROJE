@@ -34,6 +34,20 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // OpenAI AI
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
+
+function safeJSONParse(str) {
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    const match = str.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match) {
+      try { return JSON.parse(match[1]); } catch(e2) {}
+    }
+    throw e;
+  }
+}
+
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -149,7 +163,7 @@ async function analyzeQuestion(imageBuffer, mimeType, fileSize, subject) {
       ]
     });
     
-    const parsed = JSON.parse(response.choices[0].message.content);
+    const parsed = safeJSONParse(response.choices[0].message.content);
     return {
       topic: parsed.konu || "Belirlenemedi",
       solution: parsed.cozum || "Çözüm üretilemedi"
@@ -235,7 +249,7 @@ app.post("/api/generate-similar", authMiddleware, async (req, res) => {
       messages: [{ role: "user", content: prompt }]
     });
     
-    const parsed = JSON.parse(response.choices[0].message.content);
+    const parsed = safeJSONParse(response.choices[0].message.content);
     res.json({ success: true, questions: parsed.questions });
   } catch (error) {
     console.error("AI Benzer Soru Hatası:", error);
@@ -1022,7 +1036,7 @@ Programı sadece JSON formatında dön. JSON yapısı şu şekilde olmalı:
       ]
     });
     
-    const planData = JSON.parse(response.choices[0].message.content);
+    const planData = safeJSONParse(response.choices[0].message.content);
 
     // 4. Save to Database
     const { data: savedPlan, error: insertError } = await supabase
@@ -1111,7 +1125,7 @@ JSON formatında dön:
         messages: [{ role: "user", content: prompt }]
       });
 
-      const parsed = JSON.parse(response.choices[0].message.content);
+      const parsed = safeJSONParse(response.choices[0].message.content);
       aiMessage = parsed.ai_message;
       statusText = parsed.status || "Değerlendirme";
     }
