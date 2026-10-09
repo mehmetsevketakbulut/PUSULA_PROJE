@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yanlış Defterim - YKS Yanlış Soru Takipçisi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-book-open"></i>
+                <span>Yanlış Defterim</span>
+            </div>
+            <button class="sidebar-close" id="sidebarClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-page="dashboard">
+                <i class="fas fa-chart-pie"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="gallery">
+                <i class="fas fa-images"></i>
+                <span>Soru Galerisi</span>
+            </a>
+            <a href="#" class="nav-item" data-page="upload">
+                <i class="fas fa-camera"></i>
+                <span>Soru Ekle</span>
+            </a>
+            <a href="#" class="nav-item" data-page="stats">
+                <i class="fas fa-chart-bar"></i>
+                <span>İstatistikler</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-actions">
+                <button class="btn-sidebar-action" id="exportBtn" title="Verileri Dışa Aktar">
+                    <i class="fas fa-download"></i>
+                    <span>Dışa Aktar</span>
+                </button>
+                <button class="btn-sidebar-action" id="importBtn" title="Verileri İçe Aktar">
+                    <i class="fas fa-upload"></i>
+                    <span>İçe Aktar</span>
+                </button>
+                <input type="file" id="importFile" accept=".json" hidden>
+            </div>
+            <div class="sidebar-credit">
+                <p>Pusula Takımı © 2026</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        <!-- Top Bar -->
+        <header class="topbar">
+            <button class="hamburger" id="hamburger">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="topbar-title">
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn-primary" id="quickAddBtn">
+                    <i class="fas fa-plus"></i>
+                    <span>Soru Ekle</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard Page -->
+        <section class="page active" id="page-dashboard">
+            <div class="stats-grid">
+                <div class="stat-card stat-total">
+                    <div class="stat-icon">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number" id="totalQuestions">0</h3>
+                        <p class="stat-label">Toplam Soru</p>
+                    </div>
+                </div>
+                <div class="stat-card stat-week">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-week"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number" id="weekQuestions">0</h3>
+                        <p class="stat-label">Bu Hafta</p>
+                    </div>
+                </div>
+                <div class="stat-card stat-worst">
+                    <div class="stat-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number" id="worstSubject">-</h3>
+                        <p class="stat-label">En Çok Yanlış</p>
+                    </div>
+                </div>
+                <div class="stat-card stat-streak">
+                    <div class="stat-icon">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 class="stat-number" id="subjectCount">0</h3>
+                        <p class="stat-label">Ders Sayısı</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subject Distribution -->
+            <div class="dashboard-grid">
+                <div class="card subject-distribution">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-bar"></i> Derse Göre Dağılım</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="bar-chart" id="subjectChart"></div>
+                    </div>
+                </div>
+
+                <div class="card recent-questions">
+                    <div class="card-header">
+                        <h2><i class="fas fa-clock"></i> Son Eklenenler</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="recent-list" id="recentList">
+                            <div class="empty-state-small">
+                                <i class="fas fa-inbox"></i>
+                                <p>Henüz soru eklenmedi</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Difficulty Distribution -->
+            <div class="card difficulty-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-signal"></i> Zorluk Dağılımı</h2>
+                </div>
+                <div class="card-body">
+                    <div class="difficulty-bars" id="difficultyChart"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gallery Page -->
+        <section class="page" id="page-gallery">
+            <div class="gallery-toolbar">
+                <div class="filter-group">
+                    <select class="filter-select" id="filterSubject">
+                        <option value="">Tüm Dersler</option>
+                    </select>
+                    <select class="filter-select" id="filterTopic">
+                        <option value="">Tüm Konular</option>
+                    </select>
+                    <select class="filter-select" id="filterDifficulty">
+                        <option value="">Tüm Zorluklar</option>
+                        <option value="kolay">Kolay</option>
+                        <option value="orta">Orta</option>
+                        <option value="zor">Zor</option>
+                    </select>
+                </div>
+                <div class="search-group">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search"></i>
+                        <input type="text" class="search-input" id="searchInput" placeholder="Not veya etiket ara...">
+                    </div>
+                    <select class="filter-select" id="sortSelect">
+                        <option value="date-desc">En Yeni</option>
+                        <option value="date-asc">En Eski</option>
+                        <option value="subject">Derse Göre</option>
+                        <option value="difficulty">Zorluğa Göre</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="gallery-grid" id="galleryGrid">
+                <div class="empty-state" id="galleryEmpty">
+                    <div class="empty-icon">
+                        <i class="fas fa-camera-retro"></i>
+                    </div>
+                    <h3>Henüz yanlış soru eklenmedi</h3>
+                    <p>Yanlış yaptığın soruların fotoğrafını çekip buraya ekleyebilirsin!</p>
+                    <button class="btn-primary btn-lg" id="emptyAddBtn">
+                        <i class="fas fa-plus"></i> İlk Soruyu Ekle
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload Page -->
+        <section class="page" id="page-upload">
+            <div class="upload-container">
+                <div class="upload-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-camera"></i> Yeni Yanlış Soru Ekle</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="uploadForm">
+                            <!-- Image Upload Area -->
+                            <div class="upload-area" id="uploadArea">
+                                <div class="upload-placeholder" id="uploadPlaceholder">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <h3>Soru Fotoğrafını Yükle</h3>
+                                    <p>Sürükle & bırak veya tıkla</p>
+                                    <div class="upload-buttons">
+                                        <button type="button" class="btn-outline" id="cameraBtn">
+                                            <i class="fas fa-camera"></i> Fotoğraf Çek
+                                        </button>
+                                        <button type="button" class="btn-outline" id="fileBtn">
+                                            <i class="fas fa-folder-open"></i> Dosya Seç
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="upload-preview" id="uploadPreview" style="display:none;">
+                                    <img id="previewImage" src="" alt="Önizleme">
+                                    <button type="button" class="btn-remove-image" id="removeImage">
+                                        <i class="fas fa-trash"></i> Kaldır
+                                    </button>
+                                </div>
+                                <input type="file" id="fileInput" accept="image/*" hidden>
+                                <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+                            </div>
+
+                            <!-- Question Details -->
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="subjectSelect">
+                                        <i class="fas fa-book"></i> Ders *
+                                    </label>
+                                    <select id="subjectSelect" required>
+                                        <option value="">Ders Seçin</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="topicSelect">
+                                        <i class="fas fa-bookmark"></i> Konu *
+                                    </label>
+                                    <select id="topicSelect" required disabled>
+                                        <option value="">Önce ders seçin</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="difficultySelect">
+                                        <i class="fas fa-signal"></i> Zorluk
+                                    </label>
+                                    <select id="difficultySelect">
+                                        <option value="orta">Orta</option>
+                                        <option value="kolay">Kolay</option>
+                                        <option value="zor">Zor</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tagsInput">
+                                        <i class="fas fa-tags"></i> Etiketler
+                                    </label>
+                                    <input type="text" id="tagsInput" placeholder="virgülle ayırın: TYT, deneme, 2024">
+                                </div>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="notesInput">
+                                    <i class="fas fa-sticky-note"></i> Notlar
+                                </label>
+                                <textarea id="notesInput" rows="3" placeholder="Bu soruyla ilgili notlarını yaz..."></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" id="cancelUpload">
+                                    <i class="fas fa-times"></i> İptal
+                                </button>
+                                <button type="submit" class="btn-primary btn-lg">
+                                    <i class="fas fa-save"></i> Kaydet
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Page -->
+        <section class="page" id="page-stats">
+            <div class="stats-page-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-pie"></i> Ders Bazlı Analiz</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="subject-stats-list" id="subjectStatsList"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-calendar-alt"></i> Haftalık Ekleme Trendi</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="weekly-chart" id="weeklyChart"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-bullseye"></i> En Zayıf Konular</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="weak-topics-list" id="weakTopicsList"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="lightbox-content">
+            <img id="lightboxImage" src="" alt="Soru">
+            <div class="lightbox-info" id="lightboxInfo"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Confirm Dialog -->
+    <div class="confirm-overlay" id="confirmOverlay">
+        <div class="confirm-dialog">
+            <div class="confirm-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 id="confirmTitle">Emin misiniz?</h3>
+            <p id="confirmMessage">Bu işlem geri alınamaz.</p>
+            <div class="confirm-actions">
+                <button class="btn-secondary" id="confirmCancel">İptal</button>
+                <button class="btn-danger" id="confirmOk">Sil</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
