@@ -245,11 +245,12 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="topicSelect">
-                                        <i class="fas fa-bookmark"></i> Konu *
+                                        <i class="fas fa-magic"></i> Konu
                                     </label>
-                                    <select id="topicSelect" required disabled>
-                                        <option value="">Önce ders seçin</option>
-                                    </select>
+                                    <div style="padding: 0.7rem 1rem; border: 1px dashed var(--primary); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--primary); background: var(--primary-light); display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="fas fa-robot"></i> <span>Yapay zeka görselden konuyu otomatik tespit edecek.</span>
+                                    </div>
+                                    <input type="hidden" id="topicSelect" value="">
                                 </div>
                                 <div class="form-group">
                                     <label for="difficultySelect">

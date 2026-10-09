@@ -1,0 +1,670 @@
+/**
+ * Yanlış Defterim - Frontend (API Bağlantılı)
+ * Pusula Takımı © 2026
+ */
+
+const API_BASE = "";
+const SUBJECTS = {
+  "Matematik": ["Fonksiyonlar", "Türev", "İntegral", "Limit", "Olasılık", "Geometri", "Trigonometri", "Sayılar", "Polinomlar"],
+  "Fizik": ["Kuvvet", "Hareket", "Enerji", "Elektrik", "Manyetizma", "Optik", "Dalgalar", "Modern Fizik"],
+  "Kimya": ["Mol Kavramı", "Asit-Baz", "Organik Kimya", "Kimyasal Denge", "Elektrokimya", "Çözeltiler"],
+  "Biyoloji": ["Hücre", "Genetik", "Ekosistem", "Solunum", "Fotosentez", "Sinir Sistemi", "Dolaşım"],
+  "Türkçe": ["Paragraf", "Sözcükte Anlam", "Cümlede Anlam", "Dil Bilgisi", "Yazım Kuralları"],
+  "Tarih": ["Osmanlı", "İnkılap Tarihi", "Çağdaş Türk Dünya Tarihi", "İlk Türk Devletleri"],
+  "Coğrafya": ["Türkiye Coğrafyası", "Dünya Coğrafyası", "Harita Bilgisi", "İklim"]
+};
+
+let selectedFile = null;
+
+// ==============================
+// BAŞLATMA
+// ==============================
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupNavigation();
+  setupUploadForm();
+  setupGalleryFilters();
+  setupExportImport();
+  setupLightbox();
+  populateSubjects();
+  loadDashboard();
+  loadGallery();
+  loadStats();
+});
+
+// ==============================
+// API ÇAĞRILARI
+// ==============================
+
+async function apiGet(url) {
+  const res = await fetch(`${API_BASE}${url}`);
+  if (!res.ok) throw new Error(`API hatası: ${res.status}`);
+  return res.json();
+}
+
+async function apiDelete(url) {
+  const res = await fetch(`${API_BASE}${url}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`API hatası: ${res.status}`);
+  return res.json();
+}
+
+async function apiPostForm(url, formData) {
+  const res = await fetch(`${API_BASE}${url}`, { method: "POST", body: formData });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || `API hatası: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ==============================
+// NAVİGASYON
+// ==============================
+
+function setupNavigation() {
+  const navItems = document.querySelectorAll(".nav-item");
+  const hamburger = document.getElementById("hamburger");
+  const sidebar = document.getElementById("sidebar");
+  const sidebarClose = document.getElementById("sidebarClose");
+  const quickAddBtn = document.getElementById("quickAddBtn");
+  const pageTitle = document.getElementById("pageTitle");
+
+  const pageTitles = {
+    dashboard: "Dashboard",
+    gallery: "Soru Galerisi",
+    upload: "Soru Ekle",
+    stats: "İstatistikler"
+  };
+
+  navItems.forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      const page = item.dataset.page;
+      navItems.forEach(n => n.classList.remove("active"));
+      item.classList.add("active");
+      document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+      document.getElementById(`page-${page}`).classList.add("active");
+      pageTitle.textContent = pageTitles[page] || page;
+      sidebar.classList.remove("active");
+
+      if (page === "dashboard") loadDashboard();
+      if (page === "gallery") loadGallery();
+      if (page === "stats") loadStats();
+    });
+  });
+
+  hamburger.addEventListener("click", () => sidebar.classList.toggle("active"));
+  sidebarClose.addEventListener("click", () => sidebar.classList.remove("active"));
+
+  quickAddBtn.addEventListener("click", () => navigateTo("upload"));
+
+  const emptyAddBtn = document.getElementById("emptyAddBtn");
+  if (emptyAddBtn) emptyAddBtn.addEventListener("click", () => navigateTo("upload"));
+}
+
+function navigateTo(page) {
+  const navItem = document.querySelector(`[data-page="${page}"]`);
+  if (navItem) navItem.click();
+}
+
+// ==============================
+// YÜKLEME FORMU
+// ==============================
+
+function populateSubjects() {
+  const select = document.getElementById("subjectSelect");
+  const filterSelect = document.getElementById("filterSubject");
+
+  [select, filterSelect].forEach(sel => {
+    if (!sel) return;
+    const first = sel.querySelector("option");
+    sel.innerHTML = "";
+    sel.appendChild(first);
+    Object.keys(SUBJECTS).forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = s;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function setupUploadForm() {
+  const form = document.getElementById("uploadForm");
+  const fileInput = document.getElementById("fileInput");
+  const cameraInput = document.getElementById("cameraInput");
+  const fileBtn = document.getElementById("fileBtn");
+  const cameraBtn = document.getElementById("cameraBtn");
+  const uploadArea = document.getElementById("uploadArea");
+  const uploadPlaceholder = document.getElementById("uploadPlaceholder");
+  const uploadPreview = document.getElementById("uploadPreview");
+  const previewImage = document.getElementById("previewImage");
+  const removeImage = document.getElementById("removeImage");
+  const cancelUpload = document.getElementById("cancelUpload");
+
+  fileBtn.addEventListener("click", (e) => { e.preventDefault(); fileInput.click(); });
+  cameraBtn.addEventListener("click", (e) => { e.preventDefault(); cameraInput.click(); });
+
+  const handleFile = (file) => {
+    if (!file || !file.type.startsWith("image/")) {
+      showToast("Lütfen geçerli bir resim dosyası seçin", "error");
+      return;
+    }
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImage.src = e.target.result;
+      uploadPlaceholder.style.display = "none";
+      uploadPreview.style.display = "flex";
+    };
+    reader.readAsDataURL(file);
+  };
+
+  fileInput.addEventListener("change", (e) => handleFile(e.target.files[0]));
+  cameraInput.addEventListener("change", (e) => handleFile(e.target.files[0]));
+
+  uploadArea.addEventListener("dragover", (e) => { e.preventDefault(); uploadArea.classList.add("drag-over"); });
+  uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("drag-over"));
+  uploadArea.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove("drag-over");
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  removeImage.addEventListener("click", () => {
+    selectedFile = null;
+    previewImage.src = "";
+    uploadPlaceholder.style.display = "flex";
+    uploadPreview.style.display = "none";
+    fileInput.value = "";
+    cameraInput.value = "";
+  });
+
+  cancelUpload.addEventListener("click", () => navigateTo("dashboard"));
+
+  // FORM SUBMIT — AI ANALİZLİ
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (!selectedFile) {
+      showToast("Lütfen bir soru fotoğrafı ekleyin", "warning");
+      return;
+    }
+
+    const subject = document.getElementById("subjectSelect").value;
+    if (!subject) {
+      showToast("Lütfen bir ders seçin", "warning");
+      return;
+    }
+
+    const tagsRaw = document.getElementById("tagsInput").value;
+    const tags = JSON.stringify(tagsRaw.split(",").map(t => t.trim()).filter(t => t));
+
+    // Loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnHTML = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI Analiz Ediyor...';
+    submitBtn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("image", selectedFile);
+      formData.append("subject", subject);
+      formData.append("difficulty", document.getElementById("difficultySelect").value);
+      formData.append("notes", document.getElementById("notesInput").value);
+      formData.append("tags", tags);
+
+      const result = await apiPostForm("/api/questions", formData);
+
+      showToast(`Soru eklendi! Konu: ${result.question.topic} 🎯`, "success");
+
+      // Çözümü göster
+      if (result.question.aiSolution) {
+        showSolutionModal(result.question);
+      }
+
+      // Formu temizle
+      form.reset();
+      selectedFile = null;
+      previewImage.src = "";
+      uploadPlaceholder.style.display = "flex";
+      uploadPreview.style.display = "none";
+      fileInput.value = "";
+      cameraInput.value = "";
+
+    } catch (error) {
+      showToast(error.message || "Soru eklenirken hata oluştu", "error");
+    } finally {
+      submitBtn.innerHTML = originalBtnHTML;
+      submitBtn.disabled = false;
+    }
+  });
+}
+
+// ==============================
+// ÇÖZÜM MODALI
+// ==============================
+
+function showSolutionModal(question) {
+  // Lightbox'u çözüm göstermek için kullan
+  const lightbox = document.getElementById("lightbox");
+  const img = document.getElementById("lightboxImage");
+  const info = document.getElementById("lightboxInfo");
+
+  img.src = question.imagePath;
+  info.innerHTML = `
+    <h3>🎯 ${question.subject} - ${question.topic}</h3>
+    <span class="badge diff-${question.difficulty}">${question.difficulty}</span>
+    <div style="text-align:left; margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.1); border-radius:12px;">
+      <h4 style="margin-bottom:0.5rem; color:#00C9A7;">📝 AI Çözümü:</h4>
+      <div style="white-space:pre-wrap; font-size:0.9rem; line-height:1.6;">${question.aiSolution}</div>
+    </div>
+    <div style="margin-top:1rem; display:flex; gap:0.75rem; justify-content:center;">
+      <button class="btn-primary" onclick="closeLightbox(); navigateTo('gallery');">
+        <i class="fas fa-images"></i> Galeriye Git
+      </button>
+      <button class="btn-outline" style="color:white; border-color:rgba(255,255,255,0.3);" onclick="closeLightbox(); navigateTo('upload');">
+        <i class="fas fa-plus"></i> Yeni Soru
+      </button>
+    </div>
+  `;
+
+  lightbox.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+
+// ==============================
+// DASHBOARD
+// ==============================
+
+async function loadDashboard() {
+  try {
+    const stats = await apiGet("/api/stats");
+    animateCounter("totalQuestions", stats.total);
+    animateCounter("weekQuestions", stats.weekCount);
+    document.getElementById("worstSubject").textContent = stats.worstSubject;
+    animateCounter("subjectCount", stats.uniqueSubjects);
+
+    renderSubjectChart(stats.bySubject, stats.total);
+    renderDifficultyChart(stats.byDifficulty);
+    loadRecentList();
+  } catch (error) {
+    console.error("Dashboard yüklenemedi:", error);
+  }
+}
+
+async function loadRecentList() {
+  const container = document.getElementById("recentList");
+  if (!container) return;
+
+  try {
+    const questions = await apiGet("/api/questions?sort=date-desc");
+    const recent = questions.slice(0, 5);
+
+    if (recent.length === 0) {
+      container.innerHTML = '<div class="empty-state-small"><i class="fas fa-inbox"></i><p>Henüz soru eklenmedi</p></div>';
+      return;
+    }
+
+    container.innerHTML = recent.map(q => `
+      <div class="recent-item" onclick="openLightbox(${q.id})">
+        <div class="recent-thumb" style="background-image: url('${q.imagePath}')"></div>
+        <div class="recent-info">
+          <h4>${q.subject} - ${q.topic}</h4>
+          <small><span class="badge diff-${q.difficulty}">${q.difficulty}</span> ${formatDate(q.dateAdded)}</small>
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    container.innerHTML = '<div class="empty-state-small"><p>Yüklenemedi</p></div>';
+  }
+}
+
+function animateCounter(elementId, target) {
+  const el = document.getElementById(elementId);
+  if (!el || isNaN(target)) return;
+  const duration = 800;
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) return;
+  const startTime = performance.now();
+  function update(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(start + (target - start) * eased);
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+function renderSubjectChart(bySubject, total) {
+  const container = document.getElementById("subjectChart");
+  if (!container) return;
+  if (!bySubject || bySubject.length === 0) {
+    container.innerHTML = '<div class="empty-state-small"><i class="fas fa-chart-bar"></i><p>Henüz veri yok</p></div>';
+    return;
+  }
+  container.innerHTML = bySubject.map(s => {
+    const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
+    return `<div class="bar-item">
+      <span class="bar-label">${s.subject}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"><span>${s.count}</span></div></div>
+    </div>`;
+  }).join("");
+}
+
+function renderDifficultyChart(byDifficulty) {
+  const container = document.getElementById("difficultyChart");
+  if (!container) return;
+  const counts = { kolay: 0, orta: 0, zor: 0 };
+  (byDifficulty || []).forEach(d => { counts[d.difficulty] = d.count; });
+  const total = counts.kolay + counts.orta + counts.zor;
+  if (total === 0) {
+    container.innerHTML = '<div class="empty-state-small"><i class="fas fa-signal"></i><p>Henüz veri yok</p></div>';
+    return;
+  }
+  const max = Math.max(counts.kolay, counts.orta, counts.zor, 1);
+  container.innerHTML = `
+    <div class="diff-bar-wrapper"><div class="diff-bar easy" style="height:${Math.max((counts.kolay/max)*150,30)}px"><span>${counts.kolay}</span></div><span class="diff-label">Kolay</span></div>
+    <div class="diff-bar-wrapper"><div class="diff-bar medium" style="height:${Math.max((counts.orta/max)*150,30)}px"><span>${counts.orta}</span></div><span class="diff-label">Orta</span></div>
+    <div class="diff-bar-wrapper"><div class="diff-bar hard" style="height:${Math.max((counts.zor/max)*150,30)}px"><span>${counts.zor}</span></div><span class="diff-label">Zor</span></div>
+  `;
+}
+
+// ==============================
+// GALERİ
+// ==============================
+
+function setupGalleryFilters() {
+  const filterSubject = document.getElementById("filterSubject");
+  const filterTopic = document.getElementById("filterTopic");
+  const filterDifficulty = document.getElementById("filterDifficulty");
+  const searchInput = document.getElementById("searchInput");
+  const sortSelect = document.getElementById("sortSelect");
+
+  const rerender = () => loadGallery();
+  filterSubject.addEventListener("change", () => {
+    filterTopic.innerHTML = '<option value="">Tüm Konular</option>';
+    const subject = filterSubject.value;
+    if (subject && SUBJECTS[subject]) {
+      SUBJECTS[subject].forEach(topic => {
+        const opt = document.createElement("option");
+        opt.value = topic;
+        opt.textContent = topic;
+        filterTopic.appendChild(opt);
+      });
+    }
+    rerender();
+  });
+  filterTopic.addEventListener("change", rerender);
+  filterDifficulty.addEventListener("change", rerender);
+  sortSelect.addEventListener("change", rerender);
+  let searchTimeout;
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(rerender, 300);
+  });
+}
+
+async function loadGallery() {
+  const grid = document.getElementById("galleryGrid");
+  if (!grid) return;
+
+  const params = new URLSearchParams();
+  const subject = document.getElementById("filterSubject")?.value;
+  const topic = document.getElementById("filterTopic")?.value;
+  const difficulty = document.getElementById("filterDifficulty")?.value;
+  const search = document.getElementById("searchInput")?.value;
+  const sort = document.getElementById("sortSelect")?.value;
+
+  if (subject) params.set("subject", subject);
+  if (topic) params.set("topic", topic);
+  if (difficulty) params.set("difficulty", difficulty);
+  if (search) params.set("search", search);
+  if (sort) params.set("sort", sort);
+
+  try {
+    const questions = await apiGet(`/api/questions?${params}`);
+
+    if (questions.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon"><i class="fas fa-camera-retro"></i></div>
+          <h3>Henüz yanlış soru eklenmedi</h3>
+          <p>Yanlış yaptığın soruların fotoğrafını çekip buraya ekleyebilirsin!</p>
+          <button class="btn-primary btn-lg" onclick="navigateTo('upload')"><i class="fas fa-plus"></i> İlk Soruyu Ekle</button>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = questions.map((q, i) => `
+      <div class="question-card" style="animation-delay:${i*0.05}s">
+        <div class="card-image-wrapper" onclick="openLightbox(${q.id})">
+          <img src="${q.imagePath}" alt="${q.subject}" loading="lazy">
+          <div class="card-overlay"><span class="icon-search"><i class="fas fa-search-plus"></i> Büyüt</span></div>
+        </div>
+        <div class="card-content">
+          <div class="card-header">
+            <span class="card-subject">${q.subject}</span>
+            <span class="badge diff-${q.difficulty}">${q.difficulty}</span>
+          </div>
+          <div class="card-topic">📌 ${q.topic}</div>
+          ${q.notes ? `<div class="card-notes">${truncate(q.notes, 60)}</div>` : ""}
+          ${q.aiSolution ? `<div class="card-notes" style="color:#00C9A7; font-size:0.75rem;">🤖 AI Çözümü mevcut</div>` : ""}
+          <div class="card-tags">${(q.tags||[]).map(t => `<span class="tag">#${t}</span>`).join("")}</div>
+          <div class="card-footer">
+            <span class="card-date">${formatDate(q.dateAdded)}</span>
+            <button class="btn-icon btn-delete" onclick="event.stopPropagation(); handleDelete(${q.id})" title="Sil">🗑️</button>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  } catch (error) {
+    grid.innerHTML = '<div class="empty-state"><p>Sorular yüklenemedi</p></div>';
+  }
+}
+
+// ==============================
+// SİLME
+// ==============================
+
+function handleDelete(id) {
+  showConfirm("Bu soruyu silmek istediğine emin misin?", "Bu işlem geri alınamaz.", async () => {
+    try {
+      await apiDelete(`/api/questions/${id}`);
+      showToast("Soru silindi", "info");
+      closeLightbox();
+      loadDashboard();
+      loadGallery();
+      loadStats();
+    } catch (error) {
+      showToast("Silme işlemi başarısız", "error");
+    }
+  });
+}
+
+// ==============================
+// İSTATİSTİKLER
+// ==============================
+
+async function loadStats() {
+  try {
+    const stats = await apiGet("/api/stats");
+
+    // Ders bazlı analiz
+    const subjectList = document.getElementById("subjectStatsList");
+    if (subjectList) {
+      if (stats.bySubject.length === 0) {
+        subjectList.innerHTML = '<div class="empty-state-small"><i class="fas fa-chart-pie"></i><p>Henüz veri yok</p></div>';
+      } else {
+        const maxCount = Math.max(...stats.bySubject.map(s => s.count));
+        subjectList.innerHTML = stats.bySubject.map(s => `
+          <div class="subject-stat-item">
+            <span class="subject-name">${s.subject}</span>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width:${(s.count/maxCount)*100}%"></div></div>
+            <span class="stat-count">${s.count}</span>
+          </div>
+        `).join("");
+      }
+    }
+
+    // Haftalık trend
+    const weeklyChart = document.getElementById("weeklyChart");
+    if (weeklyChart) {
+      const days = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+      const maxDay = Math.max(...stats.weeklyTrend.map(d => d.count), 1);
+      weeklyChart.innerHTML = stats.weeklyTrend.map(d => `
+        <div class="week-bar-wrapper">
+          <div class="week-bar" style="height:${Math.max((d.count/maxDay)*120,4)}px"></div>
+          <span class="week-label">${days[d.day]}</span>
+        </div>
+      `).join("");
+    }
+
+    // Zayıf konular
+    const weakList = document.getElementById("weakTopicsList");
+    if (weakList) {
+      if (stats.byTopic.length === 0) {
+        weakList.innerHTML = '<div class="empty-state-small"><i class="fas fa-bullseye"></i><p>Henüz veri yok</p></div>';
+      } else {
+        weakList.innerHTML = stats.byTopic.map(t => `
+          <div class="weak-topic-item">
+            <div class="topic-info">
+              <span class="topic-subject">${t.subject}</span>
+              <span class="topic-name">${t.topic}</span>
+            </div>
+            <span class="topic-count">${t.count}</span>
+          </div>
+        `).join("");
+      }
+    }
+  } catch (error) {
+    console.error("İstatistikler yüklenemedi:", error);
+  }
+}
+
+// ==============================
+// LIGHTBOX
+// ==============================
+
+function setupLightbox() {
+  const lightbox = document.getElementById("lightbox");
+  const closeBtn = document.getElementById("lightboxClose");
+  closeBtn.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
+}
+
+async function openLightbox(id) {
+  try {
+    const q = await apiGet(`/api/questions/${id}`);
+    const lightbox = document.getElementById("lightbox");
+    const img = document.getElementById("lightboxImage");
+    const info = document.getElementById("lightboxInfo");
+
+    img.src = q.imagePath;
+    info.innerHTML = `
+      <h3>${q.subject} - ${q.topic}</h3>
+      <span class="badge diff-${q.difficulty}">${q.difficulty}</span>
+      ${q.notes ? `<p>📝 ${q.notes}</p>` : ""}
+      ${q.tags?.length ? `<p>${q.tags.map(t => `<span class="tag">#${t}</span>`).join(" ")}</p>` : ""}
+      ${q.aiSolution ? `
+        <div style="text-align:left; margin-top:1rem; padding:1rem; background:rgba(255,255,255,0.1); border-radius:12px;">
+          <h4 style="margin-bottom:0.5rem; color:#00C9A7;">🤖 AI Çözümü:</h4>
+          <div style="white-space:pre-wrap; font-size:0.85rem; line-height:1.6;">${q.aiSolution}</div>
+        </div>
+      ` : ""}
+      <p><small>${formatDate(q.dateAdded)}</small></p>
+      <button class="btn-danger" onclick="handleDelete(${q.id})"><i class="fas fa-trash"></i> Sil</button>
+    `;
+
+    lightbox.classList.add("active");
+    document.body.style.overflow = "hidden";
+  } catch (error) {
+    showToast("Soru yüklenemedi", "error");
+  }
+}
+
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("active");
+  document.body.style.overflow = "";
+}
+
+// ==============================
+// TOAST & CONFIRM
+// ==============================
+
+function showToast(message, type = "info") {
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+let confirmCallback = null;
+
+function showConfirm(title, message, onConfirm) {
+  const overlay = document.getElementById("confirmOverlay");
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmMessage").textContent = message;
+  confirmCallback = onConfirm;
+  overlay.classList.add("active");
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("confirmOverlay");
+  document.getElementById("confirmCancel").addEventListener("click", () => {
+    overlay.classList.remove("active");
+    confirmCallback = null;
+  });
+  document.getElementById("confirmOk").addEventListener("click", () => {
+    overlay.classList.remove("active");
+    if (confirmCallback) confirmCallback();
+    confirmCallback = null;
+  });
+});
+
+// ==============================
+// EXPORT / IMPORT
+// ==============================
+
+function setupExportImport() {
+  document.getElementById("exportBtn").addEventListener("click", async () => {
+    try {
+      const data = await apiGet("/api/export");
+      if (data.length === 0) { showToast("Dışa aktarılacak veri yok", "warning"); return; }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `yanlis_defterim_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Veriler dışa aktarıldı! 📁", "success");
+    } catch (error) {
+      showToast("Dışa aktarma başarısız", "error");
+    }
+  });
+
+  document.getElementById("importBtn").addEventListener("click", () => {
+    document.getElementById("importFile").click();
+  });
+}
+
+// ==============================
+// YARDIMCI
+// ==============================
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString("tr-TR", { day:"numeric", month:"short", year:"numeric" });
+}
+
+function truncate(str, len) {
+  return str.length <= len ? str : str.substring(0, len) + "...";
+}
