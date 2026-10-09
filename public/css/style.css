@@ -1193,14 +1193,19 @@ select, input, textarea { font-family: inherit; }
 }
 
 /* NATIVE PDF PRINT STYLES FOR REPORT CARD */
+
+/* NATIVE PDF PRINT STYLES */
 @media print {
   body * {
     visibility: hidden;
   }
-  #reportCardContent, #reportCardContent * {
+  
+  /* --- REPORT CARD PRINT MODE --- */
+  body.print-report #reportCardContent, 
+  body.print-report #reportCardContent * {
     visibility: visible;
   }
-  #reportCardContent {
+  body.print-report #reportCardContent {
     position: absolute;
     left: 0;
     top: 0;
@@ -1208,12 +1213,99 @@ select, input, textarea { font-family: inherit; }
     padding: 0 !important;
     margin: 0 !important;
   }
-  #downloadPdfBtn, .sidebar, .hamburger, .mobile-overlay {
+  body.print-report #downloadPdfBtn {
+    display: none !important;
+  }
+  
+  /* --- STUDY PLAN PRINT MODE --- */
+  body.print-study #studyPlanCard, 
+  body.print-study #studyPlanCard * {
+    visibility: visible;
+  }
+  body.print-study #studyPlanCard {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 10px 20px !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  body.print-study #downloadStudyPdfBtn {
+    display: none !important;
+  }
+  
+  /* Study Plan Cool Print Design */
+  body.print-study #studyPlanCard .card-header {
+    text-align: center !important;
+    border-bottom: 3px solid #6C63FF !important;
+    padding-bottom: 15px !important;
+    margin-bottom: 25px !important;
+  }
+  body.print-study #studyPlanCard .card-header h2 {
+    font-size: 26pt !important;
+    color: #2D3436 !important;
+    display: block !important;
+    width: 100%;
+  }
+  body.print-study #studyPlanMotivation {
+    font-size: 16pt !important;
+    color: #333 !important;
+    margin-bottom: 30px !important;
+    background: #f8f9fd !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+    border-left: 5px solid #6C63FF !important;
+  }
+  body.print-study #studyPlanSchedule {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+  body.print-study #studyPlanSchedule > div {
+    border: 2px solid #e2e8f0 !important;
+    border-radius: 15px !important;
+    padding: 20px !important;
+    background-color: #ffffff !important;
+    break-inside: avoid !important;
+    box-shadow: 4px 4px 0px rgba(108, 99, 255, 0.1) !important;
+  }
+  body.print-study #studyPlanSchedule h4 {
+    color: #000 !important;
+    border-bottom: 2px dashed #ccc !important;
+    font-size: 16pt !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 15px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  body.print-study #studyPlanSchedule li {
+    font-size: 12pt !important;
+    color: #222 !important;
+    margin-bottom: 10px !important;
+  }
+  /* Cool Watermark */
+  body.print-study #studyPlanCard::after {
+    content: "PUSULA";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 120pt;
+    font-weight: 900;
+    color: rgba(108, 99, 255, 0.04);
+    z-index: -1;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* Shared print rules */
+  .sidebar, .hamburger, .mobile-overlay {
     display: none !important;
   }
   .card {
     box-shadow: none !important;
-    border: 1px solid #ccc !important;
     break-inside: avoid;
   }
 }

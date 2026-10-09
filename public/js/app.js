@@ -1336,7 +1336,7 @@ async function loadReportCard() {
     const dlBtn = document.getElementById('downloadPdfBtn');
     if (dlBtn) {
       dlBtn.style.display = 'inline-block';
-      dlBtn.onclick = () => { window.print(); };
+      dlBtn.onclick = () => { document.body.classList.add('print-report'); window.print(); setTimeout(() => document.body.classList.remove('print-report'), 1000); };
     }
   } catch (err) {
     console.error(err);
@@ -1349,3 +1349,12 @@ async function loadReportCard() {
   }
 }
 
+
+
+window.printStudyPlan = function() {
+    document.body.classList.add('print-study');
+    window.print();
+    setTimeout(() => {
+        document.body.classList.remove('print-study');
+    }, 1000);
+};
