@@ -1260,7 +1260,7 @@ async function loadReportCard() {
   if (!content) return;
   
   content.innerHTML = `
-    <div style="text-align: center; padding: 4rem 1rem; color: #636e72;">
+    <div style="text-align: center; padding: 4rem 1rem; color: #333;">
         <i class="fas fa-spinner fa-spin fa-3x" style="color: #6C63FF; margin-bottom: 1rem;"></i>
         <p style="font-size: 1.1rem;">Karnen hazırlanıyor, lütfen bekle...</p>
     </div>
@@ -1270,7 +1270,7 @@ async function loadReportCard() {
     const data = await apiGet('/api/report-card');
     
     let trendIcon = "fa-minus";
-    let trendColor = "#636e72";
+    let trendColor = "#333";
     let trendText = "Değişim yok";
     
     if (data.trend > 0) {
@@ -1283,11 +1283,11 @@ async function loadReportCard() {
       trendText = `${Math.abs(data.trend)} soru azaldı`;
     }
 
-    let topicsHtml = '<p style="color:#636e72;">Yeterli veri yok.</p>';
+    let topicsHtml = '<p style="color:#333;">Yeterli veri yok.</p>';
     if (data.weakTopics && data.weakTopics.length > 0) {
       topicsHtml = data.weakTopics.map(t => `
         <div style="background: #F8F9FD; border-radius: 12px; padding: 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0;">
-          <span style="font-weight: 600; color: #2D3436;">${t.name}</span>
+          <span style="font-weight: 600; color: #000;">${t.name}</span>
           <span style="background: rgba(231,76,60,0.1); color: #e74c3c; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.9rem; font-weight: 700;">${t.count} Yanlış</span>
         </div>
       `).join('');
@@ -1298,8 +1298,8 @@ async function loadReportCard() {
         <div class="card" style="border-top: 4px solid #6C63FF; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
           <div class="card-body" style="text-align: center; padding: 2rem;">
             <i class="fas fa-robot fa-3x" style="color: #6C63FF; margin-bottom: 1rem;"></i>
-            <h3 style="color: #2D3436; margin-bottom: 1rem;">${data.status}</h3>
-            <p style="font-size: 1.1rem; line-height: 1.6; color: #636e72; font-style: italic;">"${data.aiMessage}"</p>
+            <h3 style="color: #000; margin-bottom: 1rem;">${data.status}</h3>
+            <p style="font-size: 1.1rem; line-height: 1.6; color: #333; font-style: italic;">"${data.aiMessage}"</p>
           </div>
         </div>
       </div>
@@ -1307,27 +1307,27 @@ async function loadReportCard() {
       <div class="dashboard-grid">
         <div class="card" style="background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
           <div class="card-header" style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
-            <h2 style="color: #2D3436; font-size: 1.25rem;"><i class="fas fa-chart-bar" style="color:#6C63FF; margin-right:8px;"></i> Sayısal Trend</h2>
+            <h2 style="color: #000; font-size: 1.25rem;"><i class="fas fa-chart-bar" style="color:#6C63FF; margin-right:8px;"></i> Sayısal Trend</h2>
           </div>
           <div class="card-body" style="display: flex; justify-content: space-around; align-items: center; padding: 2rem 1rem;">
             <div style="text-align: center;">
-              <p style="color: #636e72; font-size: 0.9rem; margin-bottom: 0.5rem;">Geçen Hafta</p>
-              <h3 style="font-size: 2.5rem; color: #2D3436;">${data.lastWeekCount}</h3>
+              <p style="color: #333; font-size: 0.9rem; margin-bottom: 0.5rem;">Geçen Hafta</p>
+              <h3 style="font-size: 2.5rem; color: #000;">${data.lastWeekCount}</h3>
             </div>
             <div style="text-align: center; color: ${trendColor};">
               <i class="fas ${trendIcon} fa-2x" style="margin-bottom: 0.5rem;"></i>
               <p style="font-weight: 700;">${trendText}</p>
             </div>
             <div style="text-align: center;">
-              <p style="color: #636e72; font-size: 0.9rem; margin-bottom: 0.5rem;">Bu Hafta</p>
-              <h3 style="font-size: 2.5rem; color: #2D3436;">${data.thisWeekCount}</h3>
+              <p style="color: #333; font-size: 0.9rem; margin-bottom: 0.5rem;">Bu Hafta</p>
+              <h3 style="font-size: 2.5rem; color: #000;">${data.thisWeekCount}</h3>
             </div>
           </div>
         </div>
         
         <div class="card" style="background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-radius: 20px;">
           <div class="card-header" style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0;">
-            <h2 style="color: #2D3436; font-size: 1.25rem;"><i class="fas fa-exclamation-triangle" style="color:#6C63FF; margin-right:8px;"></i> En Çok Zorlanılan Konular</h2>
+            <h2 style="color: #000; font-size: 1.25rem;"><i class="fas fa-exclamation-triangle" style="color:#6C63FF; margin-right:8px;"></i> En Çok Zorlanılan Konular</h2>
           </div>
           <div class="card-body" style="padding: 1.5rem;">
             ${topicsHtml}

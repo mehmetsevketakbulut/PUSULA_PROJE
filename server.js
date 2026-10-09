@@ -152,7 +152,7 @@ async function analyzeQuestion(imageBuffer, mimeType, fileSize, subject) {
           content: [
             {
               type: "text",
-              text: `Sen bir YKS uzmanısın. Ders: ${subject}\nGörevlerin:\n1. Bu sorunun hangi KONUYA ait olduğunu tespit et.\n2. Sorunun adım adım ÇÖZÜMÜNÜ yaz.\nYanıtını MUTLAKA JSON formatında ver:\n{"konu": "tespit ettiğin konu adı", "cozum": "adım adım çözüm"}`
+              text: `Sen bir YKS uzmanısın. Ders: ${subject}\nGörevlerin:\n1. Bu sorunun hangi KONUYA ait olduğunu tespit et.\n2. Sorunun adım adım ÇÖZÜMÜNÜ eksiksiz ve en son sonuca (cevaba) ulaşana kadar detaylıca yaz (Matematik sorularında işlemleri asla yarım bırakma, kesin sonuca ulaş!).\nYanıtını MUTLAKA JSON formatında ver:\n{"konu": "tespit ettiğin konu adı", "cozum": "adım adım çözüm"}`
             },
             {
               type: "image_url",
