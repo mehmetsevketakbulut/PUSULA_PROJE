@@ -556,9 +556,7 @@ function setupUploadForm() {
       return;
     }
 
-    const tagsRaw = document.getElementById("tagsInput").value;
-    const tags = JSON.stringify(tagsRaw.split(",").map(t => t.trim()).filter(t => t));
-
+    // Tags removed
     // Loading state
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalBtnHTML = submitBtn.innerHTML;
@@ -569,9 +567,7 @@ function setupUploadForm() {
       const formData = new FormData();
       formData.append("image", selectedFile);
       formData.append("subject", subject);
-      formData.append("difficulty", document.getElementById("difficultySelect").value);
       formData.append("notes", document.getElementById("notesInput").value);
-      formData.append("tags", tags);
 
       const result = await apiPostForm("/api/questions", formData);
 
