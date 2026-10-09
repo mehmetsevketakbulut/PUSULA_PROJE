@@ -1,6 +1,6 @@
 /**
  * Yanlış Defterim - Backend Server
- * Express.js + SQLite + Gemini AI
+ * Express.js + Supabase + Gemini AI
  * Pusula Takımı © 2026
  */
 
@@ -10,7 +10,9 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const Database = require("better-sqlite3");
+const { createClient } = require("@supabase/supabase-js");
+const WebSocket = require("ws");
+const crypto = require("crypto");
 
 // ==============================
 // YAPILANDIRMA
@@ -19,6 +21,14 @@ const Database = require("better-sqlite3");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_API_KEY";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://mrcgwdwyyzidwwvcomlf.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_KEY || "YOUR_SUPABASE_KEY_HERE";
+
+// Supabase
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: false },
+  realtime: { transport: WebSocket }
+});
 
 // Gemini AI
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -30,19 +40,8 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// Multer (dosya yükleme)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, "uploads");
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `soru_${Date.now()}${ext}`);
-  }
-});
-
+// Multer (dosya yükleme - Supabase için memoryStorage)
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
@@ -52,44 +51,81 @@ const upload = multer({
   }
 });
 
-// Uploads klasörünü statik serve et
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 // ==============================
-// VERİTABANI
+// YARDIMCI FONKSİYONLAR
 // ==============================
 
-const db = new Database(path.join(__dirname, "yanlis_defterim.db"));
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
-// WAL mode (daha hızlı)
-db.pragma("journal_mode = WAL");
+function generateClassCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'PUS-';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
 
-// Tablo oluştur
-db.exec(`
-  CREATE TABLE IF NOT EXISTS questions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    image_path TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    topic TEXT DEFAULT '',
-    difficulty TEXT DEFAULT 'orta',
-    notes TEXT DEFAULT '',
-    tags TEXT DEFAULT '[]',
-    ai_solution TEXT DEFAULT '',
-    ai_topic TEXT DEFAULT '',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+function createToken(user) {
+  return Buffer.from(JSON.stringify({ id: user.id, email: user.email, role: user.role, name: user.name })).toString('base64');
+}
 
-console.log("✅ Veritabanı hazır");
+function parseToken(token) {
+  try {
+    return JSON.parse(Buffer.from(token, 'base64').toString());
+  } catch { return null; }
+}
+
+function formatQuestion(q) {
+  let tags = [];
+  try { 
+    tags = typeof q.tags === "string" ? JSON.parse(q.tags) : q.tags; 
+    if (!tags) tags = [];
+  } catch (e) { tags = []; }
+  return {
+    id: q.id,
+    imagePath: q.image_path,
+    subject: q.subject,
+    topic: q.topic || q.ai_topic || "",
+    difficulty: q.difficulty,
+    notes: q.notes,
+    tags,
+    aiSolution: q.ai_solution,
+    aiTopic: q.ai_topic,
+    dateAdded: q.created_at,
+    userId: q.user_id
+  };
+}
+
+// ==============================
+// AUTH MIDDLEWARE
+// ==============================
+
+function authMiddleware(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Giriş yapmanız gerekiyor' });
+  const user = parseToken(auth.split(' ')[1]);
+  if (!user) return res.status(401).json({ error: 'Geçersiz oturum' });
+  req.user = user;
+  next();
+}
+
+function teacherOnly(req, res, next) {
+  if (req.user.role !== 'teacher') return res.status(403).json({ error: 'Bu işlem sadece öğretmenler için' });
+  next();
+}
+
+function studentOnly(req, res, next) {
+  if (req.user.role !== 'student') return res.status(403).json({ error: 'Bu işlem sadece öğrenciler için' });
+  next();
+}
 
 // ==============================
 // GEMİNİ AI ANALİZ (HIZLI DEMO GÜVENLİĞİ)
 // ==============================
 
-async function analyzeQuestion(imagePath, subject) {
-  const imageBuffer = fs.readFileSync(imagePath);
+async function analyzeQuestion(imageBuffer, mimeType, fileSize, subject) {
   const base64Image = imageBuffer.toString("base64");
-  const mimeType = imagePath.endsWith(".png") ? "image/png" : "image/jpeg";
 
   const prompt = `Sen bir YKS (Yükseköğretim Kurumları Sınavı) uzmanısın. 
 Sana bir soru görseli ve dersi veriyorum.
@@ -134,8 +170,6 @@ Yanıtını MUTLAKA JSON formatında ver, başka hiçbir şey yazma:
     console.log(`⚠️ API başarısız (${error.message}). Akıllı Demo Sigortası anında devreye girdi!`);
     
     // Dosya boyutuna göre hep aynı resme aynı cevabı, farklı resme farklı cevabı verir!
-    const fileSize = fs.statSync(imagePath).size;
-    
     let mockTopic = "Temel Kavramlar";
     let mockSolution = "Görsel analiz edildi. İşlem önceliğine ve denklem kurallarına dikkat edilerek sonuca ulaşılmıştır.";
 
@@ -172,11 +206,462 @@ Yanıtını MUTLAKA JSON formatında ver, başka hiçbir şey yazma:
 }
 
 // ==============================
+// AUTH ENDPOINTLERİ
+// ==============================
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ error: "Lütfen tüm alanları doldurun" });
+    }
+    if (role !== "student" && role !== "teacher") {
+      return res.status(400).json({ error: "Geçersiz rol" });
+    }
+
+    const passwordHash = hashPassword(password);
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ name, email, password_hash: passwordHash, role }])
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505' || error.message.includes('unique')) {
+        return res.status(400).json({ error: "Bu email adresi zaten kullanımda" });
+      }
+      throw error;
+    }
+
+    const user = { id: data.id, name: data.name, email: data.email, role: data.role };
+    res.json({ success: true, token: createToken(user), user });
+  } catch (error) {
+    console.error("Kayıt hatası:", error);
+    res.status(500).json({ error: "Kayıt işlemi başarısız" });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    
+    if (error || !user || user.password_hash !== hashPassword(password)) {
+      return res.status(401).json({ error: "E-posta veya şifre hatalı" });
+    }
+
+    const userData = { id: user.id, name: user.name, email: user.email, role: user.role };
+    res.json({ 
+      success: true, 
+      token: createToken(userData),
+      user: userData
+    });
+  } catch (error) {
+    console.error("Giriş hatası:", error);
+    res.status(500).json({ error: "Giriş işlemi başarısız" });
+  }
+});
+
+app.get("/api/auth/me", authMiddleware, (req, res) => {
+  res.json({ user: req.user });
+});
+
+// ==============================
+// CLASSROOM ENDPOINTLERİ
+// ==============================
+
+app.post("/api/classrooms", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: "Sınıf adı zorunludur" });
+
+    const code = generateClassCode();
+    const { data, error } = await supabase
+      .from('classrooms')
+      .insert([{ name, code, teacher_id: req.user.id }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, classroom: { id: data.id, name, code, teacher_id: req.user.id } });
+  } catch (error) {
+    res.status(500).json({ error: "Sınıf oluşturulamadı" });
+  }
+});
+
+app.get("/api/classrooms", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const { data: classrooms, error } = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('teacher_id', req.user.id);
+      
+    if (error) throw error;
+    
+    const { data: members } = await supabase.from('classroom_members').select('classroom_id');
+    const countMap = {};
+    if (members) {
+      members.forEach(m => {
+        if (!countMap[m.classroom_id]) countMap[m.classroom_id] = 0;
+        countMap[m.classroom_id]++;
+      });
+    }
+    
+    const formatted = classrooms.map(c => ({
+      ...c,
+      student_count: countMap[c.id] || 0
+    }));
+    
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ error: "Sınıflar getirilemedi" });
+  }
+});
+
+app.get("/api/classrooms/:id/students", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const { data: classroom, error: classError } = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('teacher_id', req.user.id)
+      .single();
+      
+    if (classError || !classroom) return res.status(403).json({ error: "Bu sınıfa erişim yetkiniz yok" });
+
+    const { data: members, error: membersError } = await supabase
+      .from('classroom_members')
+      .select('joined_at, student_id')
+      .eq('classroom_id', req.params.id);
+      
+    if (membersError) throw membersError;
+    
+    const studentIds = members.map(m => m.student_id);
+    let students = [];
+    
+    if (studentIds.length > 0) {
+      const { data: usersData } = await supabase.from('users').select('id, name, email').in('id', studentIds);
+      
+      const { data: qData } = await supabase.from('questions').select('user_id').in('user_id', studentIds);
+      let questionCounts = {};
+      if (qData) {
+        qData.forEach(q => {
+          if (!questionCounts[q.user_id]) questionCounts[q.user_id] = 0;
+          questionCounts[q.user_id]++;
+        });
+      }
+      
+      students = members.map(m => {
+        const user = usersData?.find(u => u.id === m.student_id) || {};
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          joined_at: m.joined_at,
+          question_count: questionCounts[user.id] || 0
+        };
+      });
+    }
+    
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ error: "Öğrenciler getirilemedi" });
+  }
+});
+
+app.post("/api/classrooms/join", authMiddleware, studentOnly, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: "Sınıf kodu zorunludur" });
+
+    const { data: existing, error: existError } = await supabase
+      .from('classroom_members')
+      .select('*')
+      .eq('student_id', req.user.id)
+      .single();
+      
+    if (existing) return res.status(400).json({ error: "Zaten bir sınıftasınız. Önce sınıftan ayrılmalısınız." });
+
+    const { data: classroom, error: classError } = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('code', code)
+      .single();
+      
+    if (classError || !classroom) return res.status(404).json({ error: "Geçersiz sınıf kodu" });
+
+    const { error: insertError } = await supabase
+      .from('classroom_members')
+      .insert([{ classroom_id: classroom.id, student_id: req.user.id }]);
+      
+    if (insertError) throw insertError;
+    
+    res.json({ success: true, message: "Sınıfa başarıyla katıldınız" });
+  } catch (error) {
+    res.status(500).json({ error: "Sınıfa katılma işlemi başarısız" });
+  }
+});
+
+app.get("/api/classrooms/my", authMiddleware, studentOnly, async (req, res) => {
+  try {
+    const { data: member, error } = await supabase
+      .from('classroom_members')
+      .select('classroom_id')
+      .eq('student_id', req.user.id)
+      .single();
+      
+    if (error || !member) return res.json({ classroom: null });
+    
+    const { data: classroom } = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('id', member.classroom_id)
+      .single();
+      
+    if (!classroom) return res.json({ classroom: null });
+
+    const { data: teacher } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', classroom.teacher_id)
+      .single();
+
+    const classroomData = {
+      ...classroom,
+      teacher_name: teacher ? teacher.name : "Öğretmen"
+    };
+    
+    res.json({ classroom: classroomData });
+  } catch (error) {
+    res.status(500).json({ error: "Sınıf bilgisi getirilemedi" });
+  }
+});
+
+app.delete("/api/classrooms/leave", authMiddleware, studentOnly, async (req, res) => {
+  try {
+    await supabase.from('classroom_members').delete().eq('student_id', req.user.id);
+    res.json({ success: true, message: "Sınıftan ayrıldınız" });
+  } catch (error) {
+    res.status(500).json({ error: "Sınıftan ayrılma başarısız" });
+  }
+});
+
+// ==============================
+// STUDENT ANALYSIS ENDPOINTLERİ (Öğretmenler için)
+// ==============================
+
+app.get("/api/students/:id/stats", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    // Check if student is in teacher's class
+    const { data: teacherClassrooms } = await supabase
+      .from('classrooms')
+      .select('id')
+      .eq('teacher_id', req.user.id);
+      
+    const classIds = teacherClassrooms?.map(c => c.id) || [];
+    
+    if (classIds.length === 0) {
+      return res.status(403).json({ error: "Bu öğrencinin verilerini görme yetkiniz yok" });
+    }
+
+    const { data: member } = await supabase
+      .from('classroom_members')
+      .select('*')
+      .eq('student_id', studentId)
+      .in('classroom_id', classIds)
+      .single();
+
+    if (!member) {
+      return res.status(403).json({ error: "Bu öğrencinin verilerini görme yetkiniz yok" });
+    }
+
+    const { data: questions, error: qErr } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('user_id', studentId)
+      .order('created_at', { ascending: false });
+
+    if (qErr) throw qErr;
+
+    const total = questions.length;
+
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const oneWeekAgoStr = oneWeekAgo.toISOString();
+
+    let weekCount = 0;
+    const subjectMap = {};
+    const difficultyMap = {};
+    const topicMap = {};
+
+    questions.forEach(q => {
+      if (q.created_at >= oneWeekAgoStr) weekCount++;
+      
+      subjectMap[q.subject] = (subjectMap[q.subject] || 0) + 1;
+      difficultyMap[q.difficulty] = (difficultyMap[q.difficulty] || 0) + 1;
+      
+      const key = `${q.subject}|${q.topic}`;
+      if (!topicMap[key]) topicMap[key] = { subject: q.subject, topic: q.topic, count: 0 };
+      topicMap[key].count++;
+    });
+
+    const bySubject = Object.entries(subjectMap).map(([subject, count]) => ({ subject, count })).sort((a,b) => b.count - a.count);
+    const byDifficulty = Object.entries(difficultyMap).map(([difficulty, count]) => ({ difficulty, count }));
+    const byTopic = Object.values(topicMap).sort((a,b) => b.count - a.count).slice(0, 10);
+    const recentQuestions = questions.slice(0, 5).map(formatQuestion);
+
+    res.json({
+      total,
+      weekCount,
+      bySubject,
+      byDifficulty,
+      byTopic,
+      recentQuestions
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Öğrenci istatistikleri getirilemedi" });
+  }
+});
+
+app.get("/api/students/:id/questions", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    
+    const { data: teacherClassrooms } = await supabase
+      .from('classrooms')
+      .select('id')
+      .eq('teacher_id', req.user.id);
+      
+    const classIds = teacherClassrooms?.map(c => c.id) || [];
+    
+    const { data: member } = await supabase
+      .from('classroom_members')
+      .select('*')
+      .eq('student_id', studentId)
+      .in('classroom_id', classIds)
+      .single();
+
+    if (!member) {
+      return res.status(403).json({ error: "Bu öğrencinin verilerini görme yetkiniz yok" });
+    }
+
+    const { data: questions, error: qErr } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('user_id', studentId)
+      .order('created_at', { ascending: false });
+
+    if (qErr) throw qErr;
+
+    res.json(questions.map(formatQuestion));
+  } catch (error) {
+    res.status(500).json({ error: "Sorular getirilemedi" });
+  }
+});
+
+// ==============================
+// COMMENT ENDPOINTLERİ
+// ==============================
+
+app.post("/api/comments", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const { student_id, comment } = req.body;
+    if (!student_id || !comment) return res.status(400).json({ error: "Öğrenci ID ve yorum zorunludur" });
+
+    const { data: teacherClassrooms } = await supabase
+      .from('classrooms')
+      .select('id')
+      .eq('teacher_id', req.user.id);
+      
+    const classIds = teacherClassrooms?.map(c => c.id) || [];
+    
+    const { data: member } = await supabase
+      .from('classroom_members')
+      .select('*')
+      .eq('student_id', student_id)
+      .in('classroom_id', classIds)
+      .single();
+
+    if (!member) {
+      return res.status(403).json({ error: "Bu öğrenciye yorum yapma yetkiniz yok" });
+    }
+
+    const { error: insErr } = await supabase
+      .from('teacher_comments')
+      .insert([{ teacher_id: req.user.id, student_id, comment }]);
+
+    if (insErr) throw insErr;
+    res.json({ success: true, message: "Yorum eklendi" });
+  } catch (error) {
+    res.status(500).json({ error: "Yorum eklenemedi" });
+  }
+});
+
+app.get("/api/comments/student/:id", authMiddleware, teacherOnly, async (req, res) => {
+  try {
+    const { data: comments, error } = await supabase
+      .from('teacher_comments')
+      .select('*')
+      .eq('student_id', req.params.id)
+      .eq('teacher_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    const teacherIds = [...new Set(comments.map(c => c.teacher_id))];
+    const { data: teachers } = await supabase.from('users').select('id, name').in('id', teacherIds);
+    const teacherMap = {};
+    if (teachers) teachers.forEach(t => teacherMap[t.id] = t.name);
+    
+    const formatted = comments.map(c => ({
+      ...c,
+      teacher_name: teacherMap[c.teacher_id] || "Öğretmen"
+    }));
+    
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ error: "Yorumlar getirilemedi" });
+  }
+});
+
+app.get("/api/comments/my", authMiddleware, studentOnly, async (req, res) => {
+  try {
+    const { data: comments, error } = await supabase
+      .from('teacher_comments')
+      .select('*')
+      .eq('student_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    const teacherIds = [...new Set(comments.map(c => c.teacher_id))];
+    const { data: teachers } = await supabase.from('users').select('id, name').in('id', teacherIds);
+    const teacherMap = {};
+    if (teachers) teachers.forEach(t => teacherMap[t.id] = t.name);
+    
+    const formatted = comments.map(c => ({
+      ...c,
+      teacher_name: teacherMap[c.teacher_id] || "Öğretmen"
+    }));
+    
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ error: "Yorumlar getirilemedi" });
+  }
+});
+
+// ==============================
 // API ENDPOINT'LERİ
 // ==============================
 
 // Yeni soru ekle (fotoğraf + AI analiz)
-app.post("/api/questions", upload.single("image"), async (req, res) => {
+app.post("/api/questions", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Lütfen bir fotoğraf yükleyin" });
@@ -190,27 +675,45 @@ app.post("/api/questions", upload.single("image"), async (req, res) => {
 
     // AI analiz
     console.log(`🤖 Gemini analiz başlıyor: ${subject}...`);
-    const aiResult = await analyzeQuestion(req.file.path, subject);
+    const aiResult = await analyzeQuestion(req.file.buffer, req.file.mimetype, req.file.size, subject);
     console.log(`✅ AI analiz tamamlandı - Konu: ${aiResult.topic}`);
 
+    // Upload to Supabase Storage
+    const fileName = `soru_${Date.now()}${path.extname(req.file.originalname)}`;
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('questions')
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype
+      });
+      
+    if (uploadError) throw uploadError;
+
+    const { data: publicUrlData } = supabase
+      .storage
+      .from('questions')
+      .getPublicUrl(fileName);
+      
+    const publicUrl = publicUrlData.publicUrl;
+
     // Veritabanına kaydet
-    const stmt = db.prepare(`
-      INSERT INTO questions (image_path, subject, topic, difficulty, notes, tags, ai_solution, ai_topic)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const { data: question, error: insertError } = await supabase
+      .from('questions')
+      .insert([{
+        image_path: publicUrl,
+        subject,
+        topic: aiResult.topic,
+        difficulty: difficulty || "orta",
+        notes: notes || "",
+        tags: tags || "[]",
+        ai_solution: aiResult.solution,
+        ai_topic: aiResult.topic,
+        user_id: req.user.id
+      }])
+      .select()
+      .single();
 
-    const result = stmt.run(
-      `/uploads/${req.file.filename}`,
-      subject,
-      aiResult.topic,
-      difficulty || "orta",
-      notes || "",
-      tags || "[]",
-      aiResult.solution,
-      aiResult.topic
-    );
-
-    const question = db.prepare("SELECT * FROM questions WHERE id = ?").get(result.lastInsertRowid);
+    if (insertError) throw insertError;
 
     res.json({
       success: true,
@@ -224,34 +727,37 @@ app.post("/api/questions", upload.single("image"), async (req, res) => {
 });
 
 // Tüm soruları getir (filtreleme destekli)
-app.get("/api/questions", (req, res) => {
+app.get("/api/questions", authMiddleware, async (req, res) => {
   try {
     const { subject, topic, difficulty, search, sort } = req.query;
 
-    let sql = "SELECT * FROM questions WHERE 1=1";
-    const params = [];
+    let query = supabase.from('questions').select('*').eq('user_id', req.user.id);
 
-    if (subject) { sql += " AND subject = ?"; params.push(subject); }
-    if (topic) { sql += " AND topic = ?"; params.push(topic); }
-    if (difficulty) { sql += " AND difficulty = ?"; params.push(difficulty); }
+    if (subject) query = query.eq('subject', subject);
+    if (topic) query = query.eq('topic', topic);
+    if (difficulty) query = query.eq('difficulty', difficulty);
     if (search) {
-      sql += " AND (notes LIKE ? OR tags LIKE ? OR topic LIKE ?)";
-      const s = `%${search}%`;
-      params.push(s, s, s);
+      query = query.or(`notes.ilike.%${search}%,tags.ilike.%${search}%,topic.ilike.%${search}%`);
     }
 
     // Sıralama
-    switch (sort) {
-      case "date-asc": sql += " ORDER BY created_at ASC"; break;
-      case "subject": sql += " ORDER BY subject ASC"; break;
-      case "difficulty":
-        sql += " ORDER BY CASE difficulty WHEN 'zor' THEN 1 WHEN 'orta' THEN 2 WHEN 'kolay' THEN 3 END";
-        break;
-      default: sql += " ORDER BY created_at DESC";
+    if (sort === "date-asc") query = query.order('created_at', { ascending: true });
+    else if (sort === "subject") query = query.order('subject', { ascending: true });
+    else {
+      query = query.order('created_at', { ascending: false });
     }
 
-    const questions = db.prepare(sql).all(...params);
-    res.json(questions.map(formatQuestion));
+    const { data: questions, error } = await query;
+    if (error) throw error;
+    
+    let result = questions || [];
+    
+    if (sort === "difficulty") {
+      const diffOrder = { 'zor': 1, 'orta': 2, 'kolay': 3 };
+      result.sort((a,b) => (diffOrder[a.difficulty] || 99) - (diffOrder[b.difficulty] || 99));
+    }
+
+    res.json(result.map(formatQuestion));
   } catch (error) {
     console.error("Sorular getirilirken hata:", error);
     res.status(500).json({ error: "Sorular yüklenemedi" });
@@ -259,10 +765,16 @@ app.get("/api/questions", (req, res) => {
 });
 
 // Tek soru getir
-app.get("/api/questions/:id", (req, res) => {
+app.get("/api/questions/:id", authMiddleware, async (req, res) => {
   try {
-    const question = db.prepare("SELECT * FROM questions WHERE id = ?").get(req.params.id);
-    if (!question) return res.status(404).json({ error: "Soru bulunamadı" });
+    const { data: question, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+      
+    if (error || !question) return res.status(404).json({ error: "Soru bulunamadı" });
     res.json(formatQuestion(question));
   } catch (error) {
     res.status(500).json({ error: "Hata oluştu" });
@@ -270,16 +782,30 @@ app.get("/api/questions/:id", (req, res) => {
 });
 
 // Soru sil
-app.delete("/api/questions/:id", (req, res) => {
+app.delete("/api/questions/:id", authMiddleware, async (req, res) => {
   try {
-    const question = db.prepare("SELECT * FROM questions WHERE id = ?").get(req.params.id);
-    if (!question) return res.status(404).json({ error: "Soru bulunamadı" });
+    const { data: question, error: getErr } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+      
+    if (getErr || !question) return res.status(404).json({ error: "Soru bulunamadı veya yetkiniz yok" });
 
-    // Dosyayı sil
-    const filePath = path.join(__dirname, question.image_path);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // Supabase Storage silme
+    try {
+      const fileName = question.image_path.split('/').pop();
+      if (fileName) {
+        await supabase.storage.from('questions').remove([fileName]);
+      }
+    } catch (e) {
+      console.log("Dosya silme hatası:", e);
+    }
 
-    db.prepare("DELETE FROM questions WHERE id = ?").run(req.params.id);
+    const { error: delErr } = await supabase.from('questions').delete().eq('id', req.params.id);
+    if (delErr) throw delErr;
+    
     res.json({ success: true, message: "Soru silindi" });
   } catch (error) {
     res.status(500).json({ error: "Silme işlemi başarısız" });
@@ -287,42 +813,65 @@ app.delete("/api/questions/:id", (req, res) => {
 });
 
 // İstatistikler
-app.get("/api/stats", (req, res) => {
+app.get("/api/stats", authMiddleware, async (req, res) => {
   try {
-    const total = db.prepare("SELECT COUNT(*) as count FROM questions").get().count;
+    const userId = req.user.id;
+    
+    const { data: questions, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('user_id', userId);
+      
+    if (error) throw error;
+
+    const total = questions.length;
 
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const weekCount = db.prepare(
-      "SELECT COUNT(*) as count FROM questions WHERE created_at >= ?"
-    ).get(oneWeekAgo.toISOString()).count;
+    const oneWeekAgoStr = oneWeekAgo.toISOString();
 
-    const bySubject = db.prepare(
-      "SELECT subject, COUNT(*) as count FROM questions GROUP BY subject ORDER BY count DESC"
-    ).all();
+    let weekCount = 0;
+    const subjectMap = {};
+    const difficultyMap = {};
+    const topicMap = {};
+    const weeklyTrendMap = Array(7).fill(0);
 
-    const byDifficulty = db.prepare(
-      "SELECT difficulty, COUNT(*) as count FROM questions GROUP BY difficulty"
-    ).all();
+    questions.forEach(q => {
+      const qDate = new Date(q.created_at);
+      
+      if (qDate >= oneWeekAgo) weekCount++;
+      
+      subjectMap[q.subject] = (subjectMap[q.subject] || 0) + 1;
+      difficultyMap[q.difficulty] = (difficultyMap[q.difficulty] || 0) + 1;
+      
+      const key = `${q.subject}|${q.topic}`;
+      if (!topicMap[key]) topicMap[key] = { subject: q.subject, topic: q.topic, count: 0 };
+      topicMap[key].count++;
 
-    const byTopic = db.prepare(
-      "SELECT subject, topic, COUNT(*) as count FROM questions GROUP BY subject, topic ORDER BY count DESC LIMIT 10"
-    ).all();
+      // Weekly trend
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+        if (qDate >= start && qDate < end) {
+          weeklyTrendMap[i]++;
+        }
+      }
+    });
 
+    const bySubject = Object.entries(subjectMap).map(([subject, count]) => ({ subject, count })).sort((a,b) => b.count - a.count);
+    const byDifficulty = Object.entries(difficultyMap).map(([difficulty, count]) => ({ difficulty, count }));
+    const byTopic = Object.values(topicMap).sort((a,b) => b.count - a.count).slice(0, 10);
+    
     const worstSubject = bySubject.length > 0 ? bySubject[0].subject : "-";
     const uniqueSubjects = bySubject.length;
 
-    // Haftalık trend (son 7 gün)
     const weeklyTrend = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
-      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString();
-      const count = db.prepare(
-        "SELECT COUNT(*) as count FROM questions WHERE created_at >= ? AND created_at < ?"
-      ).get(dayStart, dayEnd).count;
-      weeklyTrend.push({ day: d.getDay(), count });
+      weeklyTrend.push({ day: d.getDay(), count: weeklyTrendMap[i] });
     }
 
     res.json({
@@ -342,9 +891,15 @@ app.get("/api/stats", (req, res) => {
 });
 
 // Dışa aktar
-app.get("/api/export", (req, res) => {
+app.get("/api/export", authMiddleware, async (req, res) => {
   try {
-    const questions = db.prepare("SELECT * FROM questions ORDER BY created_at DESC").all();
+    const { data: questions, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
     res.json(questions.map(formatQuestion));
   } catch (error) {
     res.status(500).json({ error: "Dışa aktarma başarısız" });
@@ -352,25 +907,12 @@ app.get("/api/export", (req, res) => {
 });
 
 // ==============================
-// YARDIMCI
+// STATIC FILES & SPA FALLBACK
 // ==============================
 
-function formatQuestion(q) {
-  let tags = [];
-  try { tags = JSON.parse(q.tags); } catch (e) { tags = []; }
-  return {
-    id: q.id,
-    imagePath: q.image_path,
-    subject: q.subject,
-    topic: q.topic || q.ai_topic || "",
-    difficulty: q.difficulty,
-    notes: q.notes,
-    tags,
-    aiSolution: q.ai_solution,
-    aiTopic: q.ai_topic,
-    dateAdded: q.created_at
-  };
-}
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 
 // SPA fallback
 app.get("*", (req, res) => {
@@ -387,7 +929,7 @@ app.listen(PORT, () => {
 ║   🎯 Yanlış Defterim - Backend Aktif    ║
 ║   🌐 http://localhost:${PORT}              ║
 ║   🤖 Gemini AI: Bağlı                   ║
-║   💾 SQLite: Hazır                       ║
+║   💾 Supabase: Hazır                    ║
 ║   📁 Pusula Takımı © 2026               ║
 ╚══════════════════════════════════════════╝
   `);

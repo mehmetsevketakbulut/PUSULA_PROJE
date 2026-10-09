@@ -3,6 +3,19 @@
  * Pusula Takımı © 2026
  */
 
+// Auth state
+let authToken = localStorage.getItem('authToken');
+let authUser = JSON.parse(localStorage.getItem('authUser') || 'null');
+
+// Check auth on page load
+if (!authToken || !authUser) {
+  window.location.href = '/login';
+}
+
+function getAuthHeaders() {
+  return { 'Authorization': `Bearer ${authToken}` };
+}
+
 const API_BASE = "";
 const SUBJECTS = {
   "Matematik": ["Fonksiyonlar", "Türev", "İntegral", "Limit", "Olasılık", "Geometri", "Trigonometri", "Sayılar", "Polinomlar"],
@@ -21,15 +34,27 @@ let selectedFile = null;
 // ==============================
 
 document.addEventListener("DOMContentLoaded", () => {
+  if (authUser) {
+    document.getElementById("userName").textContent = authUser.name;
+    document.getElementById("userRoleBadge").textContent = authUser.role === 'teacher' ? 'Öğretmen' : 'Öğrenci';
+  }
+  setupRoleVisibility();
+  setupLogout();
+
   setupNavigation();
   setupUploadForm();
   setupGalleryFilters();
   setupExportImport();
   setupLightbox();
   populateSubjects();
-  loadDashboard();
-  loadGallery();
-  loadStats();
+  
+  if (authUser && authUser.role === 'teacher') {
+    navigateTo('classrooms');
+  } else {
+    loadDashboard();
+    loadGallery();
+    loadStats();
+  }
 });
 
 // ==============================
@@ -37,24 +62,302 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==============================
 
 async function apiGet(url) {
-  const res = await fetch(`${API_BASE}${url}`);
+  const res = await fetch(`${API_BASE}${url}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`API hatası: ${res.status}`);
   return res.json();
 }
 
 async function apiDelete(url) {
-  const res = await fetch(`${API_BASE}${url}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}${url}`, { method: "DELETE", headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`API hatası: ${res.status}`);
   return res.json();
 }
 
 async function apiPostForm(url, formData) {
-  const res = await fetch(`${API_BASE}${url}`, { method: "POST", body: formData });
+  const res = await fetch(`${API_BASE}${url}`, { method: "POST", headers: getAuthHeaders(), body: formData });
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || `API hatası: ${res.status}`);
   }
   return res.json();
+}
+
+async function apiPost(url, data) {
+  const res = await fetch(`${API_BASE}${url}`, { 
+    method: "POST", 
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || `API hatası: ${res.status}`);
+  }
+  return res.json();
+}
+
+function logout() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('authUser');
+  window.location.href = '/login';
+}
+
+function setupRoleVisibility() {
+  document.body.classList.add(`role-${authUser.role}`);
+  
+  if (authUser.role === 'teacher') {
+    const quickAddBtn = document.getElementById('quickAddBtn');
+    if (quickAddBtn) quickAddBtn.classList.add('student-only-hide');
+    const uploadNav = document.querySelector('.nav-item[data-page="upload"]');
+    if (uploadNav) uploadNav.classList.add('student-only-hide');
+  }
+}
+
+function setupLogout() {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+}
+
+// ==============================
+// SINIF VE YORUM FONKSİYONLARI
+// ==============================
+
+async function loadMyClassroom() {
+  const content = document.getElementById('myClassroomContent');
+  if (!content) return;
+  try {
+    const res = await apiGet('/api/classrooms/my');
+    if (res.classroom) {
+      content.innerHTML = `
+        <div style="padding:2rem; text-align:center; background:var(--light-bg); border-radius:var(--radius-md);">
+          <h3 style="margin-bottom:0.5rem; color:var(--primary);">${res.classroom.name}</h3>
+          <p style="margin-bottom:1rem; color:var(--text-muted);">Öğretmen: ${res.classroom.teacherName}</p>
+          <button class="btn-danger" onclick="leaveClassroom()">Sınıftan Ayrıl</button>
+        </div>
+      `;
+    } else {
+      content.innerHTML = `
+        <form id="joinClassroomForm" class="join-classroom-form" style="max-width: 400px; margin: 0 auto; text-align: center; padding: 2rem;">
+          <h3 style="margin-bottom: 1rem;">Bir Sınıfa Katıl</h3>
+          <input type="text" id="classroomCode" placeholder="Sınıf Kodu (6 haneli)" required class="search-input" style="width: 100%; margin-bottom: 1rem; text-align: center; font-size: 1.2rem; letter-spacing: 2px;">
+          <button type="submit" class="btn-primary" style="width: 100%;">Katıl</button>
+        </form>
+      `;
+      document.getElementById('joinClassroomForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        joinClassroom(document.getElementById('classroomCode').value);
+      });
+    }
+  } catch (err) {
+    content.innerHTML = `<p style="color:var(--danger)">Sınıf bilgisi yüklenemedi.</p>`;
+  }
+}
+
+async function joinClassroom(code) {
+  try {
+    await apiPost('/api/classrooms/join', { code });
+    showToast('Sınıfa başarıyla katıldınız!', 'success');
+    loadMyClassroom();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function leaveClassroom() {
+  showConfirm('Sınıftan ayrılmak istediğinize emin misiniz?', '', async () => {
+    try {
+      await apiDelete('/api/classrooms/leave');
+      showToast('Sınıftan ayrıldınız.', 'info');
+      loadMyClassroom();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+}
+
+async function loadMyComments() {
+  const list = document.getElementById('myCommentsList');
+  if (!list) return;
+  try {
+    const comments = await apiGet('/api/comments/my');
+    if (!comments || comments.length === 0) {
+      list.innerHTML = '<div class="empty-state-small"><i class="fas fa-comment-slash"></i><p>Henüz yorum bulunmuyor.</p></div>';
+      return;
+    }
+    list.innerHTML = comments.map(c => `
+      <div class="comment-card" style="background:var(--white); padding:1rem; border-radius:var(--radius-md); box-shadow:var(--card-shadow); margin-bottom:1rem; border-left: 4px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+          <strong style="color:var(--dark);"><i class="fas fa-chalkboard-teacher"></i> ${c.teacherName}</strong>
+          <small style="color:var(--text-muted);">${formatDate(c.createdAt)}</small>
+        </div>
+        <p style="color:var(--dark); font-size:0.95rem; line-height:1.5;">${c.comment}</p>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<p>Yorumlar yüklenemedi.</p>';
+  }
+}
+
+async function loadTeacherClassrooms() {
+  const list = document.getElementById('teacherClassroomsList');
+  if (!list) return;
+  try {
+    const classrooms = await apiGet('/api/classrooms');
+    document.getElementById('classroomStudentsSection').style.display = 'none';
+    
+    const form = document.getElementById('createClassroomForm');
+    if(form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('newClassroomName').value;
+        await createClassroom(name);
+        document.getElementById('newClassroomName').value = '';
+      };
+    }
+
+    if (!classrooms || classrooms.length === 0) {
+      list.innerHTML = '<div class="empty-state-small"><i class="fas fa-chalkboard"></i><p>Henüz sınıfınız yok.</p></div>';
+      return;
+    }
+    list.innerHTML = classrooms.map(c => `
+      <div class="classroom-card card" onclick="loadClassroomStudents(${c.id}, '${c.name}')" style="cursor:pointer;">
+        <div class="card-body">
+          <h3 style="color:var(--primary); margin-bottom:0.5rem;">${c.name}</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <span class="classroom-code" style="background:var(--light-bg); padding:0.4rem 0.8rem; border-radius:var(--radius-sm); font-family:monospace; font-size:1.1rem; font-weight:bold; letter-spacing:2px;">${c.code} <button class="copy-btn btn-icon" onclick="event.stopPropagation(); navigator.clipboard.writeText('${c.code}'); showToast('Kod kopyalandı!','success');"><i class="fas fa-copy"></i></button></span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.85rem;"><i class="fas fa-users"></i> ${c.studentCount} Öğrenci</p>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<p>Sınıflar yüklenemedi.</p>';
+  }
+}
+
+async function createClassroom(name) {
+  try {
+    await apiPost('/api/classrooms', { name });
+    showToast('Sınıf oluşturuldu!', 'success');
+    loadTeacherClassrooms();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function loadClassroomStudents(classroomId, className) {
+  document.getElementById('classroomStudentsSection').style.display = 'block';
+  document.getElementById('selectedClassroomName').textContent = className + ' Öğrencileri';
+  const list = document.getElementById('classroomStudentsList');
+  try {
+    const students = await apiGet(`/api/classrooms/${classroomId}/students`);
+    if (!students || students.length === 0) {
+      list.innerHTML = '<div class="empty-state-small"><p>Bu sınıfta öğrenci yok.</p></div>';
+      return;
+    }
+    list.innerHTML = students.map(s => `
+      <div class="student-list-item" onclick="loadStudentAnalysis(${s.id}, '${s.name}')" style="display:flex; justify-content:space-between; padding:1rem; border-bottom:1px solid var(--border-color); cursor:pointer;">
+        <div style="font-weight:600;"><i class="fas fa-user"></i> ${s.name}</div>
+        <div style="color:var(--text-muted); font-size:0.85rem;">${s.questionCount} Soru</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<p>Öğrenciler yüklenemedi.</p>';
+  }
+}
+
+let currentStudentId = null;
+
+async function loadStudentAnalysis(studentId, studentName) {
+  navigateTo('student-analysis');
+  currentStudentId = studentId;
+  document.getElementById('analysisStudentName').innerHTML = `<i class="fas fa-user-graduate"></i> ${studentName} Analizi`;
+  document.getElementById('studentAnalysisContent').style.display = 'block';
+  
+  try {
+    const stats = await apiGet(`/api/students/${studentId}/stats`);
+    
+    document.getElementById('saTotalQuestions').textContent = stats.total || 0;
+    document.getElementById('saWeekQuestions').textContent = stats.weekCount || 0;
+    document.getElementById('saWorstSubject').textContent = stats.worstSubject || '-';
+    
+    renderSubjectChart(stats.bySubject, stats.total, 'saSubjectChart');
+    renderDifficultyChart(stats.byDifficulty, 'saDifficultyChart');
+    
+    const weakList = document.getElementById("saWeakTopicsList");
+    if (stats.byTopic && stats.byTopic.length > 0) {
+      weakList.innerHTML = stats.byTopic.map(t => `
+        <div class="weak-topic-item">
+          <div class="topic-info"><span class="topic-subject">${t.subject}</span><span class="topic-name">${t.topic}</span></div>
+          <span class="topic-count">${t.count}</span>
+        </div>
+      `).join("");
+    } else {
+      weakList.innerHTML = '<div class="empty-state-small"><p>Veri yok</p></div>';
+    }
+    
+    const recentList = document.getElementById("saRecentList");
+    const recent = stats.recentQuestions || [];
+    if (recent.length > 0) {
+      recentList.innerHTML = recent.map(q => `
+        <div class="recent-item" onclick="openLightbox(${q.id})">
+          <div class="recent-thumb" style="background-image: url('${q.imagePath}')"></div>
+          <div class="recent-info">
+            <h4>${q.subject} - ${q.topic}</h4>
+            <small><span class="badge diff-${q.difficulty}">${q.difficulty}</span> ${formatDate(q.dateAdded)}</small>
+          </div>
+        </div>
+      `).join("");
+    } else {
+      recentList.innerHTML = '<div class="empty-state-small"><p>Soru yok</p></div>';
+    }
+    
+    loadStudentComments(studentId);
+    
+    const commentForm = document.getElementById('teacherCommentForm');
+    commentForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const text = document.getElementById('teacherCommentText').value;
+      await postComment(studentId, text);
+      document.getElementById('teacherCommentText').value = '';
+    };
+    
+  } catch (err) {
+    showToast('Öğrenci analizi yüklenemedi', 'error');
+  }
+}
+
+async function loadStudentComments(studentId) {
+  const list = document.getElementById('studentCommentsList');
+  if(!list) return;
+  try {
+    const comments = await apiGet(`/api/comments/student/${studentId}`);
+    if(!comments || comments.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">Önceki yorum bulunmuyor.</p>';
+      return;
+    }
+    list.innerHTML = comments.map(c => `
+      <div style="background:var(--light-bg); padding:1rem; border-radius:var(--radius-md); margin-bottom:1rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-size:0.85rem; color:var(--text-muted);">
+          <span>${formatDate(c.createdAt)}</span>
+        </div>
+        <p style="font-size:0.95rem; color:var(--dark);">${c.comment}</p>
+      </div>
+    `).join('');
+  } catch(err) {
+    list.innerHTML = '<p>Yorumlar yüklenemedi.</p>';
+  }
+}
+
+async function postComment(studentId, comment) {
+  try {
+    await apiPost('/api/comments', { student_id: studentId, comment });
+    showToast('Yorum gönderildi', 'success');
+    loadStudentComments(studentId);
+  } catch(err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // ==============================
@@ -73,7 +376,11 @@ function setupNavigation() {
     dashboard: "Dashboard",
     gallery: "Soru Galerisi",
     upload: "Soru Ekle",
-    stats: "İstatistikler"
+    stats: "İstatistikler",
+    "my-classroom": "Sınıfım",
+    "my-comments": "Yorumlarım",
+    classrooms: "Sınıflarım",
+    "student-analysis": "Öğrenci Analizi"
   };
 
   navItems.forEach(item => {
@@ -90,6 +397,9 @@ function setupNavigation() {
       if (page === "dashboard") loadDashboard();
       if (page === "gallery") loadGallery();
       if (page === "stats") loadStats();
+      if (page === "my-classroom") loadMyClassroom();
+      if (page === "my-comments") loadMyComments();
+      if (page === "classrooms") loadTeacherClassrooms();
     });
   });
 
@@ -337,8 +647,8 @@ function animateCounter(elementId, target) {
   requestAnimationFrame(update);
 }
 
-function renderSubjectChart(bySubject, total) {
-  const container = document.getElementById("subjectChart");
+function renderSubjectChart(bySubject, total, containerId = "subjectChart") {
+  const container = document.getElementById(containerId);
   if (!container) return;
   if (!bySubject || bySubject.length === 0) {
     container.innerHTML = '<div class="empty-state-small"><i class="fas fa-chart-bar"></i><p>Henüz veri yok</p></div>';
@@ -353,8 +663,8 @@ function renderSubjectChart(bySubject, total) {
   }).join("");
 }
 
-function renderDifficultyChart(byDifficulty) {
-  const container = document.getElementById("difficultyChart");
+function renderDifficultyChart(byDifficulty, containerId = "difficultyChart") {
+  const container = document.getElementById(containerId);
   if (!container) return;
   const counts = { kolay: 0, orta: 0, zor: 0 };
   (byDifficulty || []).forEach(d => { counts[d.difficulty] = d.count; });

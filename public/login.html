@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yanlış Defterim - Giriş Yap</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+
+  <!-- Background blobs -->
+  <div class="bg-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
+
+  <div class="container">
+    <div class="glass-card">
+      
+      <div class="header">
+        <i class="fas fa-book-open header-icon"></i>
+        <h1 class="header-title">Yanlış Defterim</h1>
+        <p class="header-subtitle">YKS Yanlış Soru Takipçisi</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-target="login">Giriş Yap</button>
+        <button class="tab-btn" data-target="register">Kayıt Ol</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="form-view active">
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="ornek@email.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Şifre</label>
+          <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-submit">
+          Giriş Yap <i class="fas fa-arrow-right"></i>
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="form-view">
+        <div class="form-group">
+          <label class="form-label" for="regName">Ad Soyad</label>
+          <input type="text" id="regName" class="form-control" placeholder="Ahmet Yılmaz" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Email</label>
+          <input type="email" id="regEmail" class="form-control" placeholder="ornek@email.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Şifre</label>
+          <input type="password" id="regPassword" class="form-control" placeholder="••••••••" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Rolünüz</label>
+          <div class="role-selector">
+            <label class="role-option">
+              <input type="radio" name="role" value="student" checked>
+              <div class="role-card">
+                <i class="fas fa-user-graduate"></i>
+                <span>Öğrenci</span>
+              </div>
+            </label>
+            <label class="role-option">
+              <input type="radio" name="role" value="teacher">
+              <div class="role-card">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>Öğretmen</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-submit">
+          Kayıt Ol <i class="fas fa-user-plus"></i>
+        </button>
+      </form>
+
+      <div class="footer">
+        Pusula Takımı &copy; 2026
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script>
+    // Authentication Check on Load
+    if (localStorage.getItem('authToken')) {
+      window.location.href = '/';
+    }
+
+    // Tab Switching Logic
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const forms = document.querySelectorAll('.form-view');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Remove active class from all
+        tabBtns.forEach(b => b.classList.remove('active'));
+        forms.forEach(f => f.classList.remove('active'));
+
+        // Add active to clicked
+        btn.classList.add('active');
+        const target = btn.getAttribute('data-target');
+        document.getElementById(target + 'Form').classList.add('active');
+      });
+    });
+
+    // Toast Notification System
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      
+      const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+      toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+      
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // API Handling
+    async function handleAuth(url, body) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('authUser', JSON.stringify(data.user));
+          showToast('Başarılı! Yönlendiriliyorsunuz...', 'success');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        } else {
+          showToast(data.message || 'Bir hata oluştu.', 'error');
+        }
+      } catch (error) {
+        showToast('Sunucuya bağlanılamadı.', 'error');
+      }
+    }
+
+    // Login Form Submit
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      handleAuth('/api/auth/login', { email, password });
+    });
+
+    // Register Form Submit
+    document.getElementById('registerForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const role = document.querySelector('input[name="role"]:checked').value;
+      
+      handleAuth('/api/auth/register', { name, email, password, role });
+    });
+  </script>
+</body>
+</html>

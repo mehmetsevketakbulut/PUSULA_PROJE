@@ -39,6 +39,24 @@
                 <i class="fas fa-chart-bar"></i>
                 <span>İstatistikler</span>
             </a>
+            <!-- Öğrenci menüleri -->
+            <a href="#" class="nav-item student-only" data-page="my-classroom">
+                <i class="fas fa-school"></i>
+                <span>Sınıfım</span>
+            </a>
+            <a href="#" class="nav-item student-only" data-page="my-comments">
+                <i class="fas fa-comments"></i>
+                <span>Yorumlarım</span>
+            </a>
+            <!-- Öğretmen menüleri -->
+            <a href="#" class="nav-item teacher-only" data-page="classrooms">
+                <i class="fas fa-chalkboard-teacher"></i>
+                <span>Sınıflarım</span>
+            </a>
+            <a href="#" class="nav-item teacher-only" data-page="student-analysis">
+                <i class="fas fa-user-graduate"></i>
+                <span>Öğrenci Analizi</span>
+            </a>
         </nav>
         <div class="sidebar-footer">
             <div class="sidebar-actions">
@@ -67,6 +85,13 @@
             </button>
             <div class="topbar-title">
                 <h1 id="pageTitle">Dashboard</h1>
+            </div>
+            <div class="topbar-user" id="topbarUser">
+                <span class="user-name" id="userName"></span>
+                <span class="user-role-badge" id="userRoleBadge"></span>
+                <button class="btn-logout" id="logoutBtn" title="Çıkış Yap">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
             </div>
             <div class="topbar-actions">
                 <button class="btn-primary" id="quickAddBtn">
@@ -315,6 +340,122 @@
                     </div>
                     <div class="card-body">
                         <div class="weak-topics-list" id="weakTopicsList"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Student - My Classroom page -->
+        <section class="page" id="page-my-classroom">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-school"></i> Sınıfım</h2>
+                </div>
+                <div class="card-body" id="myClassroomContent">
+                    <!-- Dinamik İçerik -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Student - My Comments page -->
+        <section class="page" id="page-my-comments">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-comments"></i> Yorumlarım</h2>
+                </div>
+                <div class="card-body">
+                    <div class="comments-list" id="myCommentsList"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teacher - Classrooms page -->
+        <section class="page" id="page-classrooms">
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2><i class="fas fa-chalkboard-teacher"></i> Sınıflarım</h2>
+                    <form id="createClassroomForm" style="display: flex; gap: 10px;">
+                        <input type="text" id="newClassroomName" placeholder="Sınıf Adı" required class="search-input" style="min-width: 150px;">
+                        <button type="submit" class="btn-primary">Yeni Sınıf Oluştur</button>
+                    </form>
+                </div>
+                <div class="card-body">
+                    <div class="gallery-grid" id="teacherClassroomsList"></div>
+                </div>
+            </div>
+            
+            <div class="card" id="classroomStudentsSection" style="display: none; margin-top: 1.5rem;">
+                <div class="card-header">
+                    <h2 id="selectedClassroomName">Sınıf Öğrencileri</h2>
+                </div>
+                <div class="card-body">
+                    <div class="students-list" id="classroomStudentsList"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teacher - Student Analysis page -->
+        <section class="page" id="page-student-analysis">
+            <div class="analysis-header card" style="margin-bottom: 1.5rem;">
+                <div class="card-body">
+                    <h2 id="analysisStudentName"><i class="fas fa-user-graduate"></i> Öğrenci Seçin</h2>
+                </div>
+            </div>
+            <div id="studentAnalysisContent" style="display: none;">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-question-circle"></i></div>
+                        <div class="stat-info">
+                            <h3 class="stat-number" id="saTotalQuestions">0</h3>
+                            <p class="stat-label">Toplam Soru</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
+                        <div class="stat-info">
+                            <h3 class="stat-number" id="saWeekQuestions">0</h3>
+                            <p class="stat-label">Bu Hafta</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-info">
+                            <h3 class="stat-number" id="saWorstSubject">-</h3>
+                            <p class="stat-label">En Çok Yanlış</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header"><h2>Derse Göre Dağılım</h2></div>
+                        <div class="card-body"><div class="bar-chart" id="saSubjectChart"></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h2>Zorluk Dağılımı</h2></div>
+                        <div class="card-body"><div class="difficulty-bars" id="saDifficultyChart"></div></div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header"><h2>Zayıf Konular</h2></div>
+                        <div class="card-body"><div class="weak-topics-list" id="saWeakTopicsList"></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h2>Son Eklenen Sorular</h2></div>
+                        <div class="card-body"><div class="recent-list" id="saRecentList"></div></div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 1.5rem;">
+                    <div class="card-header"><h2><i class="fas fa-comment-dots"></i> Yorum Gönder</h2></div>
+                    <div class="card-body">
+                        <form id="teacherCommentForm" class="comment-form">
+                            <textarea id="teacherCommentText" rows="3" placeholder="Öğrenci için bir değerlendirme veya tavsiye yazın..." required></textarea>
+                            <button type="submit" class="btn-primary" style="margin-top: 1rem;">Yorum Gönder</button>
+                        </form>
+                        <div class="comments-list" id="studentCommentsList" style="margin-top: 2rem;"></div>
                     </div>
                 </div>
             </div>
