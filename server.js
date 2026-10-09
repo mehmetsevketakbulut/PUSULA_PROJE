@@ -285,7 +285,7 @@ app.post("/api/auth/register", async (req, res) => {
       throw error;
     }
 
-    const user = { id: data.id, name: data.name, email: data.email, role: data.role };
+    const user = { id: data.id, name: data.name, email: data.email, role: data.role, avatar: data.avatar || 'avatar1.jpg' };
     res.json({ success: true, token: createToken(user), user });
   } catch (error) {
     console.error("Kayıt hatası:", error);
@@ -306,7 +306,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "E-posta veya şifre hatalı" });
     }
 
-    const userData = { id: user.id, name: user.name, email: user.email, role: user.role };
+    const userData = { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar || 'avatar1.jpg' };
     res.json({ 
       success: true, 
       token: createToken(userData),
@@ -318,8 +318,42 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-app.get("/api/auth/me", authMiddleware, (req, res) => {
-  res.json({ user: req.user });
+app.get("/api/auth/me", authMiddleware, async (req, res) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, avatar')
+      .eq('id', req.user.id)
+      .single();
+    if (error || !user) throw error;
+    res.json({ user: { ...user, avatar: user.avatar || 'avatar1.jpg' } });
+  } catch (error) {
+    res.status(401).json({ error: "Oturum geçersiz" });
+  }
+});
+
+app.post("/api/auth/update-profile", authMiddleware, async (req, res) => {
+  try {
+    const { password, avatar } = req.body;
+    const updates = {};
+    if (password && password.trim() !== '') updates.password_hash = hashPassword(password);
+    if (avatar) updates.avatar = avatar;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "Güncellenecek veri yok" });
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', req.user.id);
+    
+    if (error) throw error;
+    res.json({ success: true, message: "Profil güncellendi" });
+  } catch (error) {
+    console.error("Profil güncelleme hatası:", error);
+    res.status(500).json({ error: "Profil güncellenirken hata oluştu" });
+  }
 });
 
 // ==============================

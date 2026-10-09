@@ -135,6 +135,10 @@ function renderSidebar() {
           <i class="fas fa-user-graduate"></i>
           <span>Öğrenci Analizi</span>
       </a>
+      <a href="#" class="nav-item" data-page="settings">
+          <i class="fas fa-cog"></i>
+          <span>Ayarlar</span>
+      </a>
     `;
   } else {
     sidebarNav.innerHTML = `
@@ -169,6 +173,10 @@ function renderSidebar() {
       <a href="#" class="nav-item" data-page="my-comments">
           <i class="fas fa-comments"></i>
           <span>Yorumlarım</span>
+      </a>
+      <a href="#" class="nav-item" data-page="settings">
+          <i class="fas fa-cog"></i>
+          <span>Ayarlar</span>
       </a>
     `;
   }
@@ -438,8 +446,10 @@ function setupNavigation() {
     "my-classroom": "Sınıfım",
     "my-comments": "Yorumlarım",
     "study-plan": "Çalışma Programım",
+    "report-card": "Haftalık Karnem",
     classrooms: "Sınıflarım",
-    "student-analysis": "Öğrenci Analizi"
+    "student-analysis": "Öğrenci Analizi",
+    settings: "Profil Ayarları"
   };
 
   navItems.forEach(item => {
@@ -461,6 +471,7 @@ function setupNavigation() {
       if (page === "study-plan") loadStudyPlan();
       if (page === "report-card") loadReportCard();
       if (page === "classrooms") loadTeacherClassrooms();
+      if (page === "settings") loadSettings();
     });
   });
 
@@ -646,6 +657,27 @@ function showSolutionModal(question) {
 
 async function loadDashboard() {
   try {
+    const heroDiv = document.querySelector('.student-hero > div');
+    if (heroDiv && authUser && authUser.avatar) {
+      let pouContainer = document.getElementById('pouContainer');
+      if (!pouContainer) {
+        pouContainer = document.createElement('div');
+        pouContainer.id = 'pouContainer';
+        pouContainer.style.cssText = "position: absolute; right: 2rem; top: 15%; display: flex; flex-direction: column; align-items: center; z-index: 3;";
+        heroDiv.parentElement.appendChild(pouContainer);
+      }
+      pouContainer.innerHTML = `
+        <img src="images/avatars/${authUser.avatar}" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.2); animation: pouBounce 2.5s infinite ease-in-out;" />
+        <div style="background: white; color: var(--dark); padding: 0.5rem 1.2rem; border-radius: 20px; margin-top: -15px; font-weight: 800; font-size: 0.95rem; z-index: 4; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">Merhaba ${authUser.name.split(' ')[0]}! 🐾</div>
+      `;
+      if (!document.getElementById('pouAnimation')) {
+        const style = document.createElement('style');
+        style.id = 'pouAnimation';
+        style.innerHTML = `@keyframes pouBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }`;
+        document.head.appendChild(style);
+      }
+    }
+
     const stats = await apiGet("/api/stats");
     animateCounter("totalQuestions", stats.total);
     animateCounter("weekQuestions", stats.weekCount);
@@ -1378,5 +1410,86 @@ function setDailyQuote() {
     // Pick quote based on day of year to change daily
     const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
     quoteEl.textContent = quotes[dayOfYear % quotes.length];
+  }
+}
+
+// ==============================
+// AYARLAR (SETTINGS)
+// ==============================
+
+function loadSettings() {
+  if (!authUser) return;
+  const nameInput = document.getElementById('settingsName');
+  const emailInput = document.getElementById('settingsEmail');
+  if (nameInput) nameInput.value = authUser.name || '';
+  if (emailInput) emailInput.value = authUser.email || '';
+  const passInput = document.getElementById('settingsNewPassword');
+  if (passInput) passInput.value = '';
+
+  const grid = document.getElementById('avatarSelectionGrid');
+  if (grid) {
+    const avatars = ['avatar1.jpg', 'avatar2.jpg', 'avatar3.jpg', 'avatar4.jpg', 'avatar5.jpg'];
+    const currentAvatar = authUser.avatar || 'avatar1.jpg';
+    grid.innerHTML = avatars.map(av => `
+      <div class="avatar-option ${currentAvatar === av ? 'selected' : ''}" data-avatar="${av}" style="cursor: pointer; position: relative; border-radius: 50%; overflow: hidden; border: ${currentAvatar === av ? '4px solid var(--success)' : '4px solid transparent'}; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: all 0.2s;">
+        <img src="images/avatars/${av}" style="width: 100px; height: 100px; object-fit: cover; display: block;" />
+        ${currentAvatar === av ? '<i class="fas fa-check-circle" style="position: absolute; bottom: 5px; right: 5px; color: var(--success); font-size: 1.5rem; background: white; border-radius: 50%;"></i>' : ''}
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.avatar-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        grid.querySelectorAll('.avatar-option').forEach(o => {
+          o.classList.remove('selected');
+          o.style.border = '4px solid transparent';
+          const icon = o.querySelector('i');
+          if(icon) icon.remove();
+        });
+        opt.classList.add('selected');
+        opt.style.border = '4px solid var(--success)';
+        opt.innerHTML += '<i class="fas fa-check-circle" style="position: absolute; bottom: 5px; right: 5px; color: var(--success); font-size: 1.5rem; background: white; border-radius: 50%;"></i>';
+      });
+    });
+  }
+
+  const form = document.getElementById('settingsForm');
+  if (form && !form.dataset.listenerAttached) {
+    form.dataset.listenerAttached = "true";
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newPassword = document.getElementById('settingsNewPassword').value;
+      const selectedAvatarEl = document.querySelector('.avatar-option.selected');
+      const selectedAvatar = selectedAvatarEl ? selectedAvatarEl.dataset.avatar : (authUser.avatar || 'avatar1.jpg');
+
+      try {
+        const btn = form.querySelector('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kaydediliyor...';
+        btn.disabled = true;
+
+        const res = await apiPost('/api/auth/update-profile', {
+          password: newPassword,
+          avatar: selectedAvatar
+        });
+
+        if (res.success) {
+          showToast('Ayarlar başarıyla güncellendi!', 'success');
+          authUser.avatar = selectedAvatar;
+          if (document.getElementById('settingsNewPassword')) {
+             document.getElementById('settingsNewPassword').value = '';
+          }
+          const pouContainer = document.getElementById('pouContainer');
+          if (pouContainer) pouContainer.remove();
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        const btn = form.querySelector('button');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-save"></i> Değişiklikleri Kaydet';
+            btn.disabled = false;
+        }
+      }
+    });
   }
 }
